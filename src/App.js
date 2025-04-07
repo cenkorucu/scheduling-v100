@@ -1,6 +1,6 @@
 // src/App.js
 import React, { useState, useEffect } from 'react';
-import { Tabs, Tab, Box, Typography } from '@mui/material';
+import { Tabs, Tab, Box, Typography, Divider } from '@mui/material';
 import ResidentsTab from './components/ResidentsTab';
 import RotationsTab from './components/RotationsTab';
 import SchedulesTab from './components/SchedulesTab';
@@ -62,10 +62,14 @@ const App = () => {
   };
 
   return (
-    <Box sx={{ width: '100%' }}>
-      <Typography variant="h4" align="center" sx={{ my: 3 }}>
-        Scheduling App
-      </Typography>
+    <Box sx={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Updated Header */}
+      <Box sx={{ textAlign: 'center', my: 3 }}>
+        <Typography variant="h4">JCMC</Typography>
+        <Typography variant="h5">Department of Medicine</Typography>
+        <Typography variant="h6">Residency Scheduling Tool</Typography>
+      </Box>
+
       <Tabs
         value={tabValue}
         onChange={handleTabChange}
@@ -87,6 +91,17 @@ const App = () => {
         />
       )}
       {tabValue === 2 && <SchedulesTab />}
+
+      {/* MIT License Footer */}
+      <Box sx={{ mt: 'auto', py: 2, textAlign: 'center', bgcolor: '#f5f5f5' }}>
+        <Divider sx={{ mb: 2 }} />
+        <Typography variant="body2">
+          MIT License
+        </Typography>
+        <Typography variant="body2">
+          Copyright (c) 2025 Berke Cenktug Korucu
+        </Typography>
+      </Box>
     </Box>
   );
 };
