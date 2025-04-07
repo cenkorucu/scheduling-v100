@@ -3,6 +3,7 @@ import { Tabs, Tab, Box, Typography } from '@mui/material';
 import ResidentsTab from './components/ResidentsTab';
 import RotationsTab from './components/RotationsTab';
 import SchedulesTab from './components/SchedulesTab';
+import ReviewTab from './components/ReviewTab';
 
 const App = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -58,11 +59,12 @@ const App = () => {
   return (
     <Box sx={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5' }}>
       <Typography variant="h4" align="center" sx={{ py: 2, bgcolor: '#fff', boxShadow: 1 }}>
-        JCMC Scheduling App
+        Scheduling App
       </Typography>
       <Tabs value={tabValue} onChange={handleTabChange} centered sx={{ bgcolor: '#fff', boxShadow: 1 }}>
         <Tab label="Residents" />
         <Tab label="Rotations" />
+        <Tab label="Review" />
         <Tab label="Schedules" />
       </Tabs>
       <Box sx={{ flexGrow: 1, p: 2 }}>
@@ -70,9 +72,12 @@ const App = () => {
         {tabValue === 1 && (
           <RotationsTab residents={residents} rotations={rotations} setRotations={setRotations} selectedSet={selectedSet} setSelectedSet={setSelectedSet} />
         )}
-        {tabValue === 2 && <SchedulesTab />}
+        {tabValue === 2 && <ReviewTab residents={residents} rotations={rotations} selectedSet={selectedSet} setTabValue={setTabValue} />}
+        {tabValue === 3 && <SchedulesTab />}
       </Box>
-      <Typography variant="body2" align="center" sx={{ py: 3, bgcolor: '#fff', boxShadow: 1 }}>
+      <Typography variant="body2" align="center" sx={{ py: 4, bgcolor: '#fff', boxShadow: 1 }}>
+        MIT License <br />
+        <br />
         Copyright (c) 2025 Berke Cenktug Korucu
       </Typography>
     </Box>

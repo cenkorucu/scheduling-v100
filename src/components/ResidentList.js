@@ -63,7 +63,7 @@ const ResidentList = ({ residents, setResidents }) => {
                       onChange={handleEditChange}
                       inputProps={{ min: 1, max: 5 }}
                       size="small"
-                      sx={{ width: '50px' }}
+                      sx={{ width: '70px' }}
                     />
                   ) : (
                     resident.group
@@ -78,7 +78,7 @@ const ResidentList = ({ residents, setResidents }) => {
                       onChange={handleEditChange}
                       inputProps={{ min: 3, max: 25 }}
                       size="small"
-                      sx={{ width: '50px' }}
+                      sx={{ width: '70px' }}
                     />
                   ) : (
                     resident.vacation1
@@ -93,7 +93,7 @@ const ResidentList = ({ residents, setResidents }) => {
                       onChange={handleEditChange}
                       inputProps={{ min: 3, max: 25 }}
                       size="small"
-                      sx={{ width: '50px' }}
+                      sx={{ width: '70px' }}
                     />
                   ) : (
                     resident.vacation2
