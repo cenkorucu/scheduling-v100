@@ -1,76 +1,55 @@
-// src/components/RotationsTab.js
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  FormControlLabel,
-  Checkbox,
-  RadioGroup,
-  Radio,
-  TextField,
-  Button,
-  Divider,
-} from '@mui/material';
+import { Box, Typography, FormControl, InputLabel, Select, MenuItem, FormControlLabel, Checkbox, RadioGroup, Radio, TextField, Button } from '@mui/material';
 
 const RotationsTab = ({ residents, rotations, setRotations, selectedSet, setSelectedSet }) => {
   const [newRotationName, setNewRotationName] = useState('');
 
-  const handleSetChange = (event) => {
-    setSelectedSet(event.target.value);
-  };
-
+  const handleSetChange = (e) => setSelectedSet(e.target.value);
   const handleRotationToggle = (index) => {
-    const updatedRotations = { ...rotations };
-    updatedRotations[selectedSet][index].included = !updatedRotations[selectedSet][index].included;
-    setRotations(updatedRotations);
+    const updated = { ...rotations };
+    updated[selectedSet][index].included = !updated[selectedSet][index].included;
+    setRotations(updated);
   };
-
+  const handleMandatoryToggle = (index) => {
+    const updated = { ...rotations };
+    const isMandatory = !updated[selectedSet][index].mandatory;
+    updated[selectedSet][index].mandatory = isMandatory;
+    if (!isMandatory) updated[selectedSet][index].requiredPerBlock = '';
+    setRotations(updated);
+  };
   const handleTypeChange = (index, type) => {
-    const updatedRotations = { ...rotations };
-    updatedRotations[selectedSet][index].type = type;
-    // Reset values when switching types
-    if (type === 'minMax') {
-      updatedRotations[selectedSet][index].exact = '';
-    } else {
-      updatedRotations[selectedSet][index].min = '';
-      updatedRotations[selectedSet][index].max = '';
-    }
-    setRotations(updatedRotations);
+    const updated = { ...rotations };
+    updated[selectedSet][index].type = type;
+    if (type === 'minMax') updated[selectedSet][index].exact = '';
+    else updated[selectedSet][index].min = updated[selectedSet][index].max = '';
+    setRotations(updated);
   };
-
   const handleInputChange = (index, field, value) => {
-    const updatedRotations = { ...rotations };
-    updatedRotations[selectedSet][index][field] = value;
-    setRotations(updatedRotations);
+    const updated = { ...rotations };
+    updated[selectedSet][index][field] = field === 'requiredPerBlock' ? parseInt(value) || '' : value;
+    setRotations(updated);
   };
-
   const handleAddRotation = () => {
-    if (newRotationName.trim() === '') return;
-    const updatedRotations = { ...rotations };
-    updatedRotations[selectedSet].push({
+    if (!newRotationName.trim()) return;
+    const updated = { ...rotations };
+    updated[selectedSet].push({
       name: newRotationName,
       included: false,
+      mandatory: false,
+      requiredPerBlock: '',
       type: 'minMax',
       min: '',
       max: '',
       exact: '',
     });
-    setRotations(updatedRotations);
+    setRotations(updated);
     setNewRotationName('');
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" gutterBottom>
-        Rotations
-      </Typography>
-
-      {/* Rotation Set Selection */}
-      <FormControl fullWidth sx={{ mb: 3 }}>
+    <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 1, boxShadow: 1 }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>Rotations</Typography>
+      <FormControl fullWidth sx={{ mb: 1 }}>
         <InputLabel>Rotation Set</InputLabel>
         <Select value={selectedSet} onChange={handleSetChange} label="Rotation Set">
           <MenuItem value="PGY-1">PGY-1</MenuItem>
@@ -79,39 +58,50 @@ const RotationsTab = ({ residents, rotations, setRotations, selectedSet, setSele
           <MenuItem value="Custom">Custom</MenuItem>
         </Select>
       </FormControl>
-
-      {/* Rotations List */}
-      {rotations[selectedSet].length > 0 ? (
+      {rotations[selectedSet].length ? (
         rotations[selectedSet].map((rotation, index) => (
-          <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #ddd', borderRadius: 2 }}>
+          <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1, border: '1px solid #eee', borderRadius: 1 }}>
             <FormControlLabel
-              control={
-                <Checkbox
-                  checked={rotation.included}
-                  onChange={() => handleRotationToggle(index)}
-                />
-              }
+              control={<Checkbox checked={rotation.included} onChange={() => handleRotationToggle(index)} />}
               label={rotation.name}
+              sx={{ mr: 1, minWidth: 120 }}
+            />
+            <FormControlLabel
+              control={<Checkbox checked={rotation.mandatory} onChange={() => handleMandatoryToggle(index)} />}
+              label="Mandatory"
+              sx={{ mr: 1 }}
             />
             {rotation.included && (
-              <Box sx={{ ml: 4, mt: 1 }}>
+              <>
+                {rotation.mandatory && (
+                  <TextField
+                    label="Req/Block"
+                    type="number"
+                    value={rotation.requiredPerBlock}
+                    onChange={(e) => handleInputChange(index, 'requiredPerBlock', e.target.value)}
+                    size="small"
+                    sx={{ width: '90px', mr: 1 }}
+                    inputProps={{ min: 1 }}
+                  />
+                )}
                 <RadioGroup
                   row
                   value={rotation.type}
                   onChange={(e) => handleTypeChange(index, e.target.value)}
+                  sx={{ mr: 1 }}
                 >
-                  <FormControlLabel value="minMax" control={<Radio />} label="Min/Max" />
-                  <FormControlLabel value="exact" control={<Radio />} label="Exact" />
+                  <FormControlLabel value="minMax" control={<Radio size="small" />} label="Min/Max" />
+                  <FormControlLabel value="exact" control={<Radio size="small" />} label="Exact" />
                 </RadioGroup>
                 {rotation.type === 'minMax' ? (
-                  <Box sx={{ display: 'flex', gap: 2 }}>
+                  <>
                     <TextField
                       label="Min"
                       type="number"
                       value={rotation.min}
                       onChange={(e) => handleInputChange(index, 'min', e.target.value)}
                       size="small"
-                      sx={{ width: '100px' }}
+                      sx={{ width: '70px', mr: 1 }}
                     />
                     <TextField
                       label="Max"
@@ -119,9 +109,9 @@ const RotationsTab = ({ residents, rotations, setRotations, selectedSet, setSele
                       value={rotation.max}
                       onChange={(e) => handleInputChange(index, 'max', e.target.value)}
                       size="small"
-                      sx={{ width: '100px' }}
+                      sx={{ width: '70px' }}
                     />
-                  </Box>
+                  </>
                 ) : (
                   <TextField
                     label="Exact"
@@ -129,51 +119,30 @@ const RotationsTab = ({ residents, rotations, setRotations, selectedSet, setSele
                     value={rotation.exact}
                     onChange={(e) => handleInputChange(index, 'exact', e.target.value)}
                     size="small"
-                    sx={{ width: '100px' }}
+                    sx={{ width: '70px' }}
                   />
                 )}
-              </Box>
+              </>
             )}
           </Box>
         ))
       ) : (
-        <Typography>No rotations added yet. Add a new rotation below.</Typography>
+        <Typography>No rotations added.</Typography>
       )}
-
-      {/* Add New Rotation */}
-      <Box sx={{ mt: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Add New Rotation
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+      <Box sx={{ mt: 1 }}>
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>Add Rotation</Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <TextField
-            label="Rotation Name"
+            label="Name"
             value={newRotationName}
             onChange={(e) => setNewRotationName(e.target.value)}
             fullWidth
+            size="small"
+            sx={{ bgcolor: '#fafafa' }}
           />
-          <Button variant="contained" onClick={handleAddRotation}>
-            Add Rotation
-          </Button>
+          <Button variant="contained" size="small" onClick={handleAddRotation}>Add</Button>
         </Box>
       </Box>
-
-      {/* Ambulatory and Vacation Reference */}
-      <Divider sx={{ my: 3 }} />
-      <Typography variant="h6" gutterBottom>
-        Ambulatory and Vacation Reference
-      </Typography>
-      <Typography>
-        Ambulatory and vacation rotations will be automatically included in the schedule based on the following data from the Residents tab:
-      </Typography>
-      <ul>
-        <li>Ambulatory: Determined by the ambulatory group (1-5) assigned to each resident.</li>
-        <li>Vacation 1: First vacation block for each resident.</li>
-        <li>Vacation 2: Second vacation block for each resident.</li>
-      </ul>
-      <Typography>
-        Note: This data will be used in the scheduling step.
-      </Typography>
     </Box>
   );
 };

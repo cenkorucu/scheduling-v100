@@ -1,3 +1,4 @@
+// src/components/ResidentsTab.js
 import React from 'react';
 import ResidentInput from './ResidentInput';
 import ResidentList from './ResidentList';
@@ -10,18 +11,34 @@ const ResidentsTab = ({ residents, setResidents }) => {
     setResidents([...residents, ...assignedResidents]);
   };
 
-  const handleClearAll = () => setResidents([]);
-  const handleReassignVacations = () => setResidents(assignResidentData(residents.map(r => r.name)));
+  const handleClearAll = () => {
+    setResidents([]);
+  };
+
+  const handleReassignVacations = () => {
+    const names = residents.map(r => r.name);
+    const reassigned = assignResidentData(names);
+    setResidents(reassigned);
+  };
 
   return (
-    <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 1, boxShadow: 1 }}>
+    <Box sx={{ p: 3 }}>
       <ResidentInput onNamesAdded={handleNamesAdded} />
       {residents.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-          <Button variant="contained" color="secondary" onClick={handleClearAll}>
+        <Box sx={{ mb: 2 }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleClearAll}
+            sx={{ mr: 1 }}
+          >
             Clear All
           </Button>
-          <Button variant="contained" color="primary" onClick={handleReassignVacations}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleReassignVacations}
+          >
             Re-assign Vacations
           </Button>
         </Box>

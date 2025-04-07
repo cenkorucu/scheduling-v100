@@ -1,3 +1,4 @@
+// src/components/ResidentInput.js
 import React, { useState } from 'react';
 import { processNames } from '../utils/processNames';
 import { TextField, Button, Box, Typography } from '@mui/material';
@@ -5,7 +6,10 @@ import { TextField, Button, Box, Typography } from '@mui/material';
 const ResidentInput = ({ onNamesAdded }) => {
   const [namesInput, setNamesInput] = useState('');
 
-  const handleInputChange = (e) => setNamesInput(e.target.value);
+  const handleInputChange = (e) => {
+    setNamesInput(e.target.value);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const namesArray = processNames(namesInput);
@@ -14,21 +18,23 @@ const ResidentInput = ({ onNamesAdded }) => {
   };
 
   return (
-    <Box sx={{ mb: 2 }}>
-      <Typography variant="h6">Add Residents</Typography>
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h6" gutterBottom>
+        Add Resident Names
+      </Typography>
       <form onSubmit={handleSubmit}>
         <TextField
           value={namesInput}
           onChange={handleInputChange}
-          placeholder="One name per line..."
+          placeholder="Enter one resident name per line..."
           multiline
-          rows={6}
+          rows={10}
           fullWidth
           variant="outlined"
-          sx={{ mb: 1, bgcolor: '#fafafa' }}
+          sx={{ mb: 2 }}
         />
         <Button type="submit" variant="contained" color="primary">
-          Add
+          Add Names
         </Button>
       </form>
     </Box>

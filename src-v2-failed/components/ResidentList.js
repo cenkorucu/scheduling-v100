@@ -1,13 +1,27 @@
+// src/components/ResidentList.js
 import React, { useState } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TextField, Typography, Box } from '@mui/material';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  TextField,
+  Typography,
+} from '@mui/material';
 
 const ResidentList = ({ residents, setResidents }) => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [editValues, setEditValues] = useState({});
 
-  if (!residents.length) return null;
+  if (residents.length === 0) return null;
 
-  const handleDelete = (index) => setResidents(residents.filter((_, i) => i !== index));
+  const handleDelete = (index) => {
+    setResidents(residents.filter((_, i) => i !== index));
+  };
 
   const handleEditStart = (index, resident) => {
     setEditingIndex(index);
@@ -35,26 +49,26 @@ const ResidentList = ({ residents, setResidents }) => {
   };
 
   return (
-    <Box sx={{ bgcolor: '#fff', p: 1, borderRadius: 1, boxShadow: 1 }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>Residents</Typography>
-      <TableContainer component={Paper} sx={{ bgcolor: '#fafafa' }}>
+    <div>
+      <Typography variant="h6" gutterBottom>
+        Residents Added
+      </Typography>
+      <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ py: 1 }}>#</TableCell>
-              <TableCell sx={{ py: 1 }}>Name</TableCell>
-              <TableCell sx={{ py: 1 }}>Group</TableCell>
-              <TableCell sx={{ py: 1 }}>Vacation 1</TableCell>
-              <TableCell sx={{ py: 1 }}>Vacation 2</TableCell>
-              <TableCell sx={{ py: 1 }}>Actions</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Group</TableCell>
+              <TableCell>Vacation 1</TableCell>
+              <TableCell>Vacation 2</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {residents.map((resident, index) => (
               <TableRow key={index}>
-                <TableCell sx={{ py: 0.5 }}>{index + 1}</TableCell>
-                <TableCell sx={{ py: 0.5 }}>{resident.name}</TableCell>
-                <TableCell sx={{ py: 0.5 }}>
+                <TableCell>{resident.name}</TableCell>
+                <TableCell>
                   {editingIndex === index ? (
                     <TextField
                       type="number"
@@ -63,13 +77,13 @@ const ResidentList = ({ residents, setResidents }) => {
                       onChange={handleEditChange}
                       inputProps={{ min: 1, max: 5 }}
                       size="small"
-                      sx={{ width: '50px' }}
+                      sx={{ width: '60px' }}
                     />
                   ) : (
                     resident.group
                   )}
                 </TableCell>
-                <TableCell sx={{ py: 0.5 }}>
+                <TableCell>
                   {editingIndex === index ? (
                     <TextField
                       type="number"
@@ -78,13 +92,13 @@ const ResidentList = ({ residents, setResidents }) => {
                       onChange={handleEditChange}
                       inputProps={{ min: 3, max: 25 }}
                       size="small"
-                      sx={{ width: '50px' }}
+                      sx={{ width: '60px' }}
                     />
                   ) : (
                     resident.vacation1
                   )}
                 </TableCell>
-                <TableCell sx={{ py: 0.5 }}>
+                <TableCell>
                   {editingIndex === index ? (
                     <TextField
                       type="number"
@@ -93,41 +107,39 @@ const ResidentList = ({ residents, setResidents }) => {
                       onChange={handleEditChange}
                       inputProps={{ min: 3, max: 25 }}
                       size="small"
-                      sx={{ width: '50px' }}
+                      sx={{ width: '60px' }}
                     />
                   ) : (
                     resident.vacation2
                   )}
                 </TableCell>
-                <TableCell sx={{ py: 0.5 }}>
+                <TableCell>
                   {editingIndex === index ? (
                     <Button
                       variant="contained"
                       color="primary"
-                      size="small"
                       onClick={() => handleEditSave(index)}
                     >
                       Save
                     </Button>
                   ) : (
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                    <>
                       <Button
                         variant="outlined"
                         color="primary"
-                        size="small"
                         onClick={() => handleEditStart(index, resident)}
+                        sx={{ mr: 1 }}
                       >
                         Edit
                       </Button>
                       <Button
                         variant="outlined"
                         color="error"
-                        size="small"
                         onClick={() => handleDelete(index)}
                       >
                         Delete
                       </Button>
-                    </Box>
+                    </>
                   )}
                 </TableCell>
               </TableRow>
@@ -135,7 +147,7 @@ const ResidentList = ({ residents, setResidents }) => {
           </TableBody>
         </Table>
       </TableContainer>
-    </Box>
+    </div>
   );
 };
 
