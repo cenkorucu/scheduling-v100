@@ -1,4 +1,3 @@
-// src/components/ResidentsTab.js
 import React from 'react';
 import ResidentInput from './ResidentInput';
 import ResidentList from './ResidentList';
@@ -14,35 +13,9 @@ const ResidentsTab = ({ residents, setResidents }) => {
   const handleClearAll = () => setResidents([]);
   const handleReassignVacations = () => setResidents(assignResidentData(residents.map(r => r.name)));
 
-  const handleDemoClick = (setInputText) => {
-    const demoNames = [
-      'Alice',
-      'Benjamin',
-      'Clara',
-      'Daniel',
-      'Emily',
-      'Frank',
-      'Grace',
-      'Henry',
-      'Isabella',
-      'Jack',
-      'Katherine',
-      'Liam',
-      'Mia',
-      'Noah',
-      'Olivia',
-      'Peter',
-      'Quinn',
-      'Ryan',
-      'Sophia',
-      'Tina'
-    ].join('\n');
-    setInputText(demoNames); // Only updates the text box
-  };
-
   return (
     <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 1, boxShadow: 1 }}>
-      <ResidentInput onNamesAdded={handleNamesAdded} onDemoClick={handleDemoClick} />
+      <ResidentInput onNamesAdded={handleNamesAdded} />
       {residents.length > 0 && (
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <Button variant="contained" color="secondary" onClick={handleClearAll}>
