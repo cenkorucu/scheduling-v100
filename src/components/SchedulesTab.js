@@ -76,6 +76,22 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     rotationNames.forEach((rotation) => {
       counts[rotation] = scheduleData[residentName].filter((block) => block === rotation).length;
     });
+    // Add aggregate counts
+    counts['Nights'] = (
+      (counts['NF'] || 0) +
+      (counts['CCU Night'] || 0) +
+      (counts['ICU Night'] || 0) +
+      (counts['MON'] || 0)
+    );
+    counts['Units'] = (
+      (counts['ICU Day'] || 0) +
+      (counts['CCU Day'] || 0)
+    );
+    counts['Floors'] = (
+      (counts['Team A'] || 0) +
+      (counts['Team B'] || 0) +
+      (counts['IMP'] || 0)
+    );
     return counts;
   };
 
@@ -154,7 +170,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     }
   };
 
-  // Draggable and Droppable Cell Component
   const DraggableCell = ({ residentName, blockIndex, rotation }) => {
     const { attributes, listeners, setNodeRef: setDragRef, transform } = useDraggable({
       id: `${residentName}-${blockIndex}`,
@@ -190,7 +205,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     );
   };
 
-  // Handle drag end for direct swaps
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -202,7 +216,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
 
     setScheduleData((prev) => {
       const newSchedule = { ...prev };
-      // Deep copy to ensure immutability
       newSchedule[activeResident] = [...newSchedule[activeResident]];
       newSchedule[overResident] = [...newSchedule[overResident]];
       const activeRotation = newSchedule[activeResident][activeBlockIndex];
@@ -213,7 +226,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     });
   };
 
-  // Filter handlers
   const handleSelectAll = () => setSelectedResidents(residents.map(r => r.name));
   const handleUnselectAll = () => setSelectedResidents([]);
   const handleFilterClick = (event) => setFilterAnchorEl(event.currentTarget);
@@ -226,7 +238,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     );
   };
 
-  // Export CSV functions
   const exportTable1ToCSV = () => {
     const headers = ['Resident', ...Array.from({ length: 26 }, (_, i) => `Block ${i + 1}`)];
     const rows = residents
@@ -243,10 +254,10 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   };
 
   const exportTable2ToCSV = () => {
-    const headers = ['Resident', ...rotationNames];
+    const headers = ['Resident', ...rotationNames, 'Nights', 'Units', 'Floors'];
     const rows = residents.map((resident) => {
       const counts = getRotationCounts(resident.name);
-      return [resident.name, ...rotationNames.map(rotation => counts[rotation])];
+      return [resident.name, ...rotationNames.map(rotation => counts[rotation]), counts['Nights'], counts['Units'], counts['Floors']];
     });
     const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -381,6 +392,9 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
               {rotationNames.map((rotation) => (
                 <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>{rotation}</TableCell>
               ))}
+              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Nights</TableCell>
+              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Units</TableCell>
+              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Floors</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -392,6 +406,9 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                   {rotationNames.map((rotation) => (
                     <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts[rotation]}</TableCell>
                   ))}
+                  <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Nights']}</TableCell>
+                  <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Units']}</TableCell>
+                  <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Floors']}</TableCell>
                 </TableRow>
               );
             })}
