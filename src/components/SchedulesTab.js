@@ -52,7 +52,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
 
   const handleRefresh = () => {
     setScheduleData(generateSchedule(residents, rotations[selectedSet]));
-    setSelectedResidents(residents.map(r => r.name)); // Reset to all selected
+    setSelectedResidents(residents.map(r => r.name));
   };
 
   const blockAssignments = getBlockAssignments();
@@ -197,6 +197,74 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     );
   };
 
+  // Export CSV functions
+  const exportTable1ToCSV = () => {
+    const headers = ['Resident', ...Array.from({ length: 26 }, (_, i) => `Block ${i + 1}`)];
+    const rows = residents
+      .filter((resident) => selectedResidents.includes(resident.name))
+      .map((resident) => [resident.name, ...scheduleData[resident.name]]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'resident_schedule.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportTable2ToCSV = () => {
+    const headers = ['Resident', ...rotationNames];
+    const rows = residents.map((resident) => {
+      const counts = getRotationCounts(resident.name);
+      return [resident.name, ...rotationNames.map(rotation => counts[rotation])];
+    });
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'rotation_counts.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportTable3ToCSV = () => {
+    const headers = ['Block', ...rotationNames.map(rotation => `${rotation} (Assigned/Required)`)];
+    const rows = Array.from({ length: 26 }, (_, block) => {
+      const blockNum = block + 1;
+      return [
+        `Block ${blockNum}`,
+        ...rotationNames.map((rotation) => {
+          const assigned = blockAssignments[block][rotation] || 0;
+          const rotationData = (rotations[selectedSet] || []).find((r) => r.name === rotation);
+          const required = rotationData?.mandatory && rotationData.requiredPerBlock ? rotationData.requiredPerBlock : 1;
+          return `${assigned}/${required}`;
+        })
+      ];
+    });
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'block_filling_status.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 1, boxShadow: 1 }}>
       {/* Table 1: Resident Schedule by Block */}
@@ -214,6 +282,9 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
           </Button>
           <Button variant="outlined" color="primary" onClick={handleRefresh}>
             Refresh
+          </Button>
+          <Button variant="outlined" color="primary" onClick={exportTable1ToCSV}>
+            Export to CSV
           </Button>
         </Box>
       </Box>
@@ -338,7 +409,12 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       </Menu>
 
       {/* Table 2: Rotation Counts per Resident */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Rotation Counts per Resident</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6">Rotation Counts per Resident</Typography>
+        <Button variant="outlined" color="primary" onClick={exportTable2ToCSV}>
+          Export to CSV
+        </Button>
+      </Box>
       <TableContainer component={Paper} sx={{ mb: 3, border: '1px solid #e0e0e0' }}>
         <Table sx={{ borderCollapse: 'collapse' }}>
           <TableHead>
@@ -370,7 +446,12 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       </TableContainer>
 
       {/* Table 3: Block Filling Status */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Block Filling Status</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6">Block Filling Status</Typography>
+        <Button variant="outlined" color="primary" onClick={exportTable3ToCSV}>
+          Export to CSV
+        </Button>
+      </Box>
       <TableContainer component={Paper} sx={{ border: '1px solid #e0e0e0' }}>
         <Table sx={{ borderCollapse: 'collapse' }}>
           <TableHead>
