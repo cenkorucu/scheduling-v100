@@ -1,6 +1,6 @@
 // src/components/SchedulesTab.js
 import React, { useState, useMemo } from 'react';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Menu, MenuItem, TextField, Checkbox, ListItemText } from '@mui/material';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Menu, MenuItem, TextField } from '@mui/material';
 import { DndContext, closestCenter, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { SortableContext, useSortable, horizontalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -52,7 +52,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
 
   const handleRefresh = () => {
     setScheduleData(generateSchedule(residents, rotations[selectedSet]));
-    setSelectedResidents(residents.map(r => r.name)); // Reset to all selected
   };
 
   const blockAssignments = getBlockAssignments();
@@ -67,10 +66,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const [customRotation, setCustomRotation] = useState('');
   const [selectedCell, setSelectedCell] = useState(null);
 
-  // Filter state
-  const [selectedResidents, setSelectedResidents] = useState(residents.map(r => r.name));
-  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
-
   const rotationOptions = [
     'Clear', 'Elective', 'NF', 'Team A', 'Team B', 'IMP', 'MAR', 'CCU Day', 'CCU Night',
     'ICU Day', 'ICU Night', 'Geriatrics', 'ID', 'Cardio', 'Neuro', 'Renal', 'ED',
@@ -81,7 +76,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     event.preventDefault();
     setSelectedCell({ residentName, blockIndex });
     setContextMenu({
-      mouseX: event.clientX + 2,
+      mouseX: event.clientX + 2, // Offset slightly to avoid overlap
       mouseY: event.clientY - 6,
     });
   };
@@ -172,66 +167,15 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     });
   };
 
-  // Filter handlers
-  const handleSelectAll = () => {
-    setSelectedResidents(residents.map(r => r.name));
-  };
-
-  const handleUnselectAll = () => {
-    setSelectedResidents([]);
-  };
-
-  const handleFilterClick = (event) => {
-    setFilterAnchorEl(event.currentTarget);
-  };
-
-  const handleFilterClose = () => {
-    setFilterAnchorEl(null);
-  };
-
-  const handleResidentToggle = (residentName) => () => {
-    setSelectedResidents((prev) =>
-      prev.includes(residentName)
-        ? prev.filter((name) => name !== residentName)
-        : [...prev, residentName]
-    );
-  };
-
   return (
     <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 1, boxShadow: 1 }}>
       {/* Table 1: Resident Schedule by Block */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="h6">Resident Schedule by Block</Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button variant="outlined" color="primary" onClick={handleSelectAll}>
-            Select All
-          </Button>
-          <Button variant="outlined" color="primary" onClick={handleUnselectAll}>
-            Unselect All
-          </Button>
-          <Button variant="outlined" color="primary" onClick={handleFilterClick}>
-            Filter
-          </Button>
-          <Button variant="outlined" color="primary" onClick={handleRefresh}>
-            Refresh
-          </Button>
-        </Box>
+        <Button variant="outlined" color="primary" onClick={handleRefresh}>
+          Refresh
+        </Button>
       </Box>
-      <Menu
-        anchorEl={filterAnchorEl}
-        open={Boolean(filterAnchorEl)}
-        onClose={handleFilterClose}
-      >
-        {residents.map((resident) => (
-          <MenuItem
-            key={resident.name}
-            onClick={handleResidentToggle(resident.name)}
-          >
-            <Checkbox checked={selectedResidents.includes(resident.name)} />
-            <ListItemText primary={resident.name} />
-          </MenuItem>
-        ))}
-      </Menu>
       <TableContainer component={Paper} sx={{ mb: 3, border: '1px solid #e0e0e0', maxHeight: 600, overflow: 'auto' }}>
         <Table sx={{ borderCollapse: 'collapse' }}>
           <TableHead>
@@ -263,44 +207,42 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {residents
-              .filter((resident) => selectedResidents.includes(resident.name))
-              .map((resident) => (
-                <DndContext
-                  key={resident.name}
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd(resident.name)}
+            {residents.map((resident) => (
+              <DndContext
+                key={resident.name}
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd(resident.name)}
+              >
+                <SortableContext
+                  items={scheduleData[resident.name].map((_, index) => `${resident.name}-${index}`)}
+                  strategy={horizontalListSortingStrategy}
                 >
-                  <SortableContext
-                    items={scheduleData[resident.name].map((_, index) => `${resident.name}-${index}`)}
-                    strategy={horizontalListSortingStrategy}
-                  >
-                    <TableRow>
-                      <TableCell
-                        sx={{
-                          border: '1px solid #e0e0e0',
-                          p: 1,
-                          position: 'sticky',
-                          left: 0,
-                          bgcolor: '#fafafa',
-                          zIndex: 1,
-                        }}
-                      >
-                        {resident.name}
-                      </TableCell>
-                      {scheduleData[resident.name].map((rotation, blockIndex) => (
-                        <SortableRotationCell
-                          key={blockIndex}
-                          residentName={resident.name}
-                          blockIndex={blockIndex}
-                          rotation={rotation}
-                        />
-                      ))}
-                    </TableRow>
-                  </SortableContext>
-                </DndContext>
-              ))}
+                  <TableRow>
+                    <TableCell
+                      sx={{
+                        border: '1px solid #e0e0e0',
+                        p: 1,
+                        position: 'sticky',
+                        left: 0,
+                        bgcolor: '#fafafa',
+                        zIndex: 1,
+                      }}
+                    >
+                      {resident.name}
+                    </TableCell>
+                    {scheduleData[resident.name].map((rotation, blockIndex) => (
+                      <SortableRotationCell
+                        key={blockIndex}
+                        residentName={resident.name}
+                        blockIndex={blockIndex}
+                        rotation={rotation}
+                      />
+                    ))}
+                  </TableRow>
+                </SortableContext>
+              </DndContext>
+            ))}
           </TableBody>
         </Table>
       </TableContainer>
@@ -330,7 +272,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                 placeholder="Type rotation"
                 autoFocus
                 sx={{ mt: 1, width: '150px' }}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()} // Prevent menu close
               />
             )}
           </MenuItem>
