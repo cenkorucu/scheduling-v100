@@ -46,7 +46,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     'Coverage': '#7FFFD4',     // Aquamarine
     '-': '#F0F0F0',            // Light Gray (for cleared)
     'Vacation': '#999999',     // Light Yellow
-    'Ambulatory': '#D9EAD3',   // Light Green
+    'Ambulatory': '#d70ee6',   // Purple
   };
 
   const rotationOptions = [
