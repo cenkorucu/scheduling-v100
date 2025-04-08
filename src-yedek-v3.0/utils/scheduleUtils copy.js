@@ -161,6 +161,7 @@ export const generateSchedule = (residents, rotations) => {
         const current = schedule[resident.name][block];
         const next = schedule[resident.name][block + 1];
   
+        // No consecutive unit day rotations (unless mandatory filling requires it)
         if (unitDayRotations.includes(current) && unitDayRotations.includes(next)) {
           const nextIsMandatory = mandatoryRotations.some((r) => r.name === next && residents.filter((r) => schedule[r.name][block + 1] === next).length < (r.requiredPerBlock || 1));
           if (!nextIsMandatory) {
@@ -181,6 +182,7 @@ export const generateSchedule = (residents, rotations) => {
           }
         }
   
+        // No consecutive night rotations (unless mandatory filling requires it)
         if (nightRotations.includes(current) && nightRotations.includes(next)) {
           const nextIsMandatory = mandatoryRotations.some((r) => r.name === next && residents.filter((r) => schedule[r.name][block + 1] === next).length < (r.requiredPerBlock || 1));
           if (!nextIsMandatory) {
@@ -201,6 +203,7 @@ export const generateSchedule = (residents, rotations) => {
           }
         }
   
+        // Night rotation follow-up rules (unless mandatory filling requires it)
         if (nightRotations.includes(current) && !preferredAfterNight.includes(next)) {
           const nextIsMandatory = mandatoryRotations.some((r) => r.name === next && residents.filter((r) => schedule[r.name][block + 1] === next).length < (r.requiredPerBlock || 1));
           if (!nextIsMandatory) {
@@ -230,6 +233,7 @@ export const generateSchedule = (residents, rotations) => {
         const currentAssigned = residents.filter((r) => schedule[r.name][block] === rotation.name).length;
   
         if (currentAssigned < required) {
+          // First attempt: Strict rules
           let availableResidents = residents.filter((resident) => {
             const currentCount = rotationCounts[resident.name][rotation.name] || 0;
             const prevBlock = block > 0 ? schedule[resident.name][block - 1] : null;
@@ -247,6 +251,7 @@ export const generateSchedule = (residents, rotations) => {
           let toAssign = [];
   
           if (availableResidents.length < remaining) {
+            // Override night follow-up rules if needed
             availableResidents = residents.filter((resident) => {
               const currentCount = rotationCounts[resident.name][rotation.name] || 0;
               const prevBlock = block > 0 ? schedule[resident.name][block - 1] : null;
@@ -271,113 +276,6 @@ export const generateSchedule = (residents, rotations) => {
         }
       });
     };
-  
-    // Step 9: Refine Overfilled and Underfilled Rotations (5 Rounds)
-    for (let round = 0; round < 5; round++) {
-      // Part 1: Remove Overfilled Rotations per Block
-      for (let block = 0; block < 26; block++) {
-        mandatoryRotations.forEach((rotation) => {
-          const required = rotation.requiredPerBlock || 1;
-          const currentAssigned = residents.filter((r) => schedule[r.name][block] === rotation.name).length;
-  
-          if (currentAssigned > required) {
-            let assignedResidents = residents.filter((r) => schedule[r.name][block] === rotation.name);
-            // Shuffle for randomness
-            for (let i = assignedResidents.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [assignedResidents[i], assignedResidents[j]] = [assignedResidents[j], assignedResidents[i]];
-            }
-            const excess = currentAssigned - required;
-            assignedResidents.slice(0, excess).forEach((resident) => {
-              schedule[resident.name][block] = '-';
-              rotationCounts[resident.name][rotation.name]--;
-            });
-          }
-        });
-      }
-  
-      // Part 2: Adjust Resident Rotation Counts (Remove Extra)
-      residents.forEach((resident) => {
-        rotations.forEach((rotation) => {
-          const currentCount = rotationCounts[resident.name][rotation.name] || 0;
-          let targetCount = 0;
-          if (rotation.mandatory) {
-            targetCount = Math.min(Math.max(rotation.min || 0, currentCount), rotation.max || Infinity);
-          } else if (rotation.type === 'exact') {
-            targetCount = rotation.exact || 0;
-          } else {
-            return; // Skip non-mandatory without exact
-          }
-  
-          if (currentCount > targetCount) {
-            let blocksWithRotation = [];
-            for (let block = 0; block < 26; block++) {
-              if (schedule[resident.name][block] === rotation.name) {
-                blocksWithRotation.push(block);
-              }
-            }
-            for (let i = blocksWithRotation.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [blocksWithRotation[i], blocksWithRotation[j]] = [blocksWithRotation[j], blocksWithRotation[i]];
-            }
-            const excess = currentCount - targetCount;
-            blocksWithRotation.slice(0, excess).forEach((block) => {
-              schedule[resident.name][block] = '-';
-              rotationCounts[resident.name][rotation.name]--;
-            });
-          }
-        });
-      });
-  
-      // Part 3: Fill Underfilled Mandatory Rotations
-      for (let block = 0; block < 26; block++) {
-        mandatoryRotations.forEach((rotation) => {
-          const required = rotation.requiredPerBlock || 1;
-          const currentAssigned = residents.filter((r) => schedule[r.name][block] === rotation.name).length;
-  
-          if (currentAssigned < required) {
-            let availableResidents = residents.filter((resident) => {
-              const currentCount = rotationCounts[resident.name][rotation.name] || 0;
-              const prevBlock = block > 0 ? schedule[resident.name][block - 1] : null;
-              const isValidBase = schedule[resident.name][block] === '-' && currentCount < (rotation.max || Infinity);
-              const isNight = nightRotations.includes(rotation.name);
-              const prevIsNight = prevBlock && nightRotations.includes(prevBlock);
-              const followsNight = prevBlock && nightRotations.includes(prevBlock);
-              const nightFollowUpValid = followsNight ? preferredAfterNight.includes(rotation.name) : true;
-              const noConsecutiveUnit = unitDayRotations.includes(rotation.name) ? !unitDayRotations.includes(prevBlock) : true;
-              const noConsecutiveNight = isNight ? !prevIsNight : true;
-              return isValidBase && nightFollowUpValid && noConsecutiveUnit && noConsecutiveNight;
-            });
-  
-            let remaining = required - currentAssigned;
-            let toAssign = [];
-  
-            if (availableResidents.length < remaining) {
-              availableResidents = residents.filter((resident) => {
-                const currentCount = rotationCounts[resident.name][rotation.name] || 0;
-                const prevBlock = block > 0 ? schedule[resident.name][block - 1] : null;
-                const isValidBase = schedule[resident.name][block] === '-' && currentCount < (rotation.max || Infinity);
-                const isNight = nightRotations.includes(rotation.name);
-                const prevIsNight = prevBlock && nightRotations.includes(prevBlock);
-                const noConsecutiveUnit = unitDayRotations.includes(rotation.name) ? !unitDayRotations.includes(prevBlock) : true;
-                const noConsecutiveNight = isNight ? !prevIsNight : true;
-                return isValidBase && noConsecutiveUnit && noConsecutiveNight;
-              });
-            }
-  
-            for (let i = availableResidents.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [availableResidents[i], availableResidents[j]] = [availableResidents[j], availableResidents[i]];
-            }
-            toAssign = availableResidents.slice(0, remaining);
-            toAssign.forEach((resident) => {
-              schedule[resident.name][block] = rotation.name;
-              rotationCounts[resident.name][rotation.name] = (rotationCounts[resident.name][rotation.name] || 0) + 1;
-            });
-          }
-        });
-      }
-    }
   
     return schedule;
   };
