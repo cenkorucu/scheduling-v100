@@ -73,7 +73,7 @@ const App = () => {
           <RotationsTab residents={residents} rotations={rotations} setRotations={setRotations} selectedSet={selectedSet} setSelectedSet={setSelectedSet} />
         )}
         {tabValue === 2 && <ReviewTab residents={residents} rotations={rotations} selectedSet={selectedSet} setTabValue={setTabValue} />}
-        {tabValue === 3 && <SchedulesTab residents={residents} rotations={rotations} selectedSet={selectedSet} />}
+        {tabValue === 3 && <SchedulesTab />}
       </Box>
       <Typography variant="body2" align="center" sx={{ py: 4, bgcolor: '#fff', boxShadow: 1 }}>
         MIT License <br />

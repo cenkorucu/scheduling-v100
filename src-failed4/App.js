@@ -49,10 +49,16 @@ const App = () => {
 
   const [rotations, setRotations] = useState(initialRotationSets);
   const [selectedSet, setSelectedSet] = useState('PGY-1');
+  const [initialSchedule, setInitialSchedule] = useState(Array.from({ length: 26 }, () => [])); // Default schedule with 26 blocks
 
   useEffect(() => {
     console.log('Current residents:', residents);
+    console.log('Residents data:', residents.map(r => ({ id: r.id, name: r.name, group: r.group })));
   }, [residents]);
+
+  useEffect(() => {
+    console.log("Initial Schedule in App.js:", initialSchedule);
+  }, [initialSchedule]);
 
   const handleTabChange = (event, newValue) => setTabValue(newValue);
 
@@ -70,10 +76,23 @@ const App = () => {
       <Box sx={{ flexGrow: 1, p: 2 }}>
         {tabValue === 0 && <ResidentsTab residents={residents} setResidents={setResidents} />}
         {tabValue === 1 && (
-          <RotationsTab residents={residents} rotations={rotations} setRotations={setRotations} selectedSet={selectedSet} setSelectedSet={setSelectedSet} />
+          <RotationsTab
+            residents={residents}
+            rotations={rotations}
+            setRotations={setRotations}
+            selectedSet={selectedSet}
+            setSelectedSet={setSelectedSet}
+          />
         )}
         {tabValue === 2 && <ReviewTab residents={residents} rotations={rotations} selectedSet={selectedSet} setTabValue={setTabValue} />}
-        {tabValue === 3 && <SchedulesTab residents={residents} rotations={rotations} selectedSet={selectedSet} />}
+        {tabValue === 3 && (
+          <SchedulesTab
+            residents={residents}
+            initialSchedule={initialSchedule} // Ensure this is a valid 2D array
+            mandatoryRotations={rotations[selectedSet].filter((r) => r.mandatory)}
+            exactRotations={rotations[selectedSet].filter((r) => r.type === 'exact')}
+          />
+        )}
       </Box>
       <Typography variant="body2" align="center" sx={{ py: 4, bgcolor: '#fff', boxShadow: 1 }}>
         MIT License <br />
