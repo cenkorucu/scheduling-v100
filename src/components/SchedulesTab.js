@@ -74,7 +74,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const rotationOptions = [
     'Clear', 'Elective', 'NF', 'Team A', 'Team B', 'IMP', 'MAR', 'CCU Day', 'CCU Night',
     'ICU Day', 'ICU Night', 'Geriatrics', 'ID', 'Cardio', 'Neuro', 'Renal', 'ED',
-    'MON', 'MOD', 'Coverage', 'Custom'
+    'MON', 'MOD', 'Coverage', 'Ambulatory', 'Custom'
   ];
 
   const handleContextMenu = (event, residentName, blockIndex) => {
