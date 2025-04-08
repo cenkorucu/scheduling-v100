@@ -59,8 +59,8 @@ const App = () => {
   return (
     <Box sx={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5' }}>
       <Typography variant="h4" align="center" sx={{ py: 2, bgcolor: '#fff', boxShadow: 1 }}>
-        JCMC <br />
-        Department of Medicine <br />
+         JC <br />
+        Residency Program <br />
         Scheduling App
       </Typography>
       <Tabs value={tabValue} onChange={handleTabChange} centered sx={{ bgcolor: '#fff', boxShadow: 1 }}>
