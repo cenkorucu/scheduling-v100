@@ -307,7 +307,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <FormControlLabel
             control={<Switch checked={showRotationCounts} onChange={(e) => setShowRotationCounts(e.target.checked)} />}
-            label="Show Rotation Counts"
+            label="Show Rotation Count"
           />
           <Button variant="outlined" color="primary" onClick={handleSelectAll}>Select All</Button>
           <Button variant="outlined" color="primary" onClick={handleUnselectAll}>Unselect All</Button>
