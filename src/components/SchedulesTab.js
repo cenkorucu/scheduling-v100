@@ -97,7 +97,9 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     counts['Floors'] = (
       (counts['Team A'] || 0) +
       (counts['Team B'] || 0) +
-      (counts['IMP'] || 0)
+      (counts['IMP'] || 0) +
+      (counts['MAR'] || 0) +
+      (counts['MOD'] || 0) 
     );
     counts['Total'] = counts['Nights'] + counts['Units'] + counts['Floors']; 
     return counts;
@@ -262,7 +264,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     const table1Ws = XLSX.utils.aoa_to_sheet([table1Headers, ...table1Data]);
     XLSX.utils.book_append_sheet(wb, table1Ws, 'Resident Schedule');
 
-    const table2Headers = ['Resident', ...rotationNames, 'Nights', 'Units', 'Floors', 'Total (Nights+Units+Floors)'];
+    const table2Headers = ['Resident', ...rotationNames, 'Nights', 'Units', 'Floors', 'Total'];
     const table2Data = residents.map((resident) => {
       const counts = getRotationCounts(resident.name);
       return [resident.name, ...rotationNames.map(rotation => counts[rotation]), counts['Nights'], counts['Units'], counts['Floors'], counts['Total']];
@@ -469,7 +471,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
               <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Nights</TableCell>
               <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Units</TableCell>
               <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Floors</TableCell>
-              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Total (Nights+Units+Floors)</TableCell>
+              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Total</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
