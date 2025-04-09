@@ -1,6 +1,6 @@
 // src/components/SchedulesTab.js
 import React, { useState, useMemo } from 'react';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Menu, MenuItem, TextField, Checkbox, ListItemText, Switch, FormControlLabel } from '@mui/material';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Menu, MenuItem, TextField, Checkbox, ListItemText } from '@mui/material';
 import { DndContext, useSensor, useSensors, PointerSensor, useDraggable, useDroppable } from '@dnd-kit/core';
 import { generateSchedule } from '../utils/scheduleUtils';
 import { getBlockDates } from '../utils/uiUtils';
@@ -17,7 +17,6 @@ const getRandomColor = () => {
 
 const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const [scheduleData, setScheduleData] = useState(generateSchedule(residents, rotations[selectedSet]));
-  const [showRotationCounts, setShowRotationCounts] = useState(false);
   const blockDates = getBlockDates();
 
   const rotationNames = [
@@ -26,28 +25,28 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   ];
 
   const staticRotationColors = {
-    'Elective': '#FFD700',
-    'NF': '#87CEEB',
-    'Team A': '#98FB98',
-    'Team B': '#FFA07A',
-    'IMP': '#DDA0DD',
-    'MAR': '#F0E68C',
-    'CCU Day': '#FFB6C1',
-    'CCU Night': '#B0C4DE',
-    'ICU Day': '#FF6347',
-    'ICU Night': '#4682B4',
-    'Geriatrics': '#EEE8AA',
-    'ID': '#20B2AA',
-    'Cardio': '#FF4500',
-    'Neuro': '#9370DB',
-    'Renal': '#00CED1',
-    'ED': '#E69138',
-    'MON': '#ADFF2F',
-    'MOD': '#FF69B4',
-    'Coverage': '#7FFFD4',
-    '-': '#F0F0F0',
-    'Vacation': '#999999',
-    'Ambulatory': '#d70ee6',
+    'Elective': '#FFD700',      // Gold
+    'NF': '#87CEEB',           // Sky Blue
+    'Team A': '#98FB98',       // Pale Green
+    'Team B': '#FFA07A',       // Light Salmon
+    'IMP': '#DDA0DD',          // Plum
+    'MAR': '#F0E68C',          // Khaki
+    'CCU Day': '#FFB6C1',      // Light Pink
+    'CCU Night': '#B0C4DE',    // Light Steel Blue
+    'ICU Day': '#FF6347',      // Tomato
+    'ICU Night': '#4682B4',    // Steel Blue
+    'Geriatrics': '#EEE8AA',   // Pale Goldenrod
+    'ID': '#20B2AA',           // Light Sea Green
+    'Cardio': '#FF4500',       // Orange Red
+    'Neuro': '#9370DB',        // Medium Purple
+    'Renal': '#00CED1',        // Dark Turquoise
+    'ED': '#E69138',           // Light Orange    
+    'MON': '#ADFF2F',          // Green Yellow
+    'MOD': '#FF69B4',          // Hot Pink
+    'Coverage': '#7FFFD4',     // Aquamarine
+    '-': '#F0F0F0',            // Light Gray (for cleared)
+    'Vacation': '#999999',     // Light Yellow
+    'Ambulatory': '#d70ee6',   // Purple
   };
 
   const rotationOptions = [
@@ -77,6 +76,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     rotationNames.forEach((rotation) => {
       counts[rotation] = scheduleData[residentName].filter((block) => block === rotation).length;
     });
+    // Add aggregate counts
     counts['Nights'] = (
       (counts['NF'] || 0) +
       (counts['CCU Night'] || 0) +
@@ -92,7 +92,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       (counts['Team B'] || 0) +
       (counts['IMP'] || 0)
     );
-    counts['Total'] = counts['Nights'] + counts['Units'] + counts['Floors']; // New Total count
     return counts;
   };
 
@@ -180,9 +179,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       id: `${residentName}-${blockIndex}`,
     });
 
-    const counts = getRotationCounts(residentName);
-    const rotationCount = counts[rotation] || 0;
-
     const style = {
       transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
       opacity: transform ? 0.5 : 1,
@@ -205,9 +201,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         onContextMenu={(e) => handleContextMenu(e, residentName, blockIndex)}
       >
         {rotation}
-        {showRotationCounts && rotation !== '-' && (
-          <sup style={{ fontSize: '0.6rem', marginLeft: '2px' }}>{rotationCount}</sup>
-        )}
       </TableCell>
     );
   };
@@ -261,10 +254,10 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   };
 
   const exportTable2ToCSV = () => {
-    const headers = ['Resident', ...rotationNames, 'Nights', 'Units', 'Floors', 'Total'];
+    const headers = ['Resident', ...rotationNames, 'Nights', 'Units', 'Floors'];
     const rows = residents.map((resident) => {
       const counts = getRotationCounts(resident.name);
-      return [resident.name, ...rotationNames.map(rotation => counts[rotation]), counts['Nights'], counts['Units'], counts['Floors'], counts['Total']];
+      return [resident.name, ...rotationNames.map(rotation => counts[rotation]), counts['Nights'], counts['Units'], counts['Floors']];
     });
     const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -304,11 +297,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 1, boxShadow: 1 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="h6">Resident Schedule by Block</Typography>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <FormControlLabel
-            control={<Switch checked={showRotationCounts} onChange={(e) => setShowRotationCounts(e.target.checked)} />}
-            label="Show Rotation Counts"
-          />
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button variant="outlined" color="primary" onClick={handleSelectAll}>Select All</Button>
           <Button variant="outlined" color="primary" onClick={handleUnselectAll}>Unselect All</Button>
           <Button variant="outlined" color="primary" onClick={handleFilterClick}>Filter</Button>
@@ -406,15 +395,13 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
               <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Nights</TableCell>
               <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Units</TableCell>
               <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Floors</TableCell>
-              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Total (Nights+Units+Floors)</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {residents.map((resident, index) => {
+            {residents.map((resident) => {
               const counts = getRotationCounts(resident.name);
-              const rowBgColor = index % 2 === 0 ? '#ffffff' : '#f5f5f5'; // Alternating colors
               return (
-                <TableRow key={resident.name} sx={{ bgcolor: rowBgColor }}>
+                <TableRow key={resident.name}>
                   <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>{resident.name}</TableCell>
                   {rotationNames.map((rotation) => (
                     <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts[rotation]}</TableCell>
@@ -422,7 +409,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                   <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Nights']}</TableCell>
                   <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Units']}</TableCell>
                   <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Floors']}</TableCell>
-                  <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Total']}</TableCell>
                 </TableRow>
               );
             })}
@@ -447,9 +433,8 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
           <TableBody>
             {Array.from({ length: 26 }, (_, block) => {
               const blockNum = block + 1;
-              const rowBgColor = block % 2 === 0 ? '#ffffff' : '#f5f5f5'; // Alternating colors
               return (
-                <TableRow key={blockNum} sx={{ bgcolor: rowBgColor }}>
+                <TableRow key={blockNum}>
                   <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>Block {blockNum}</TableCell>
                   {rotationNames.map((rotation) => {
                     const assigned = blockAssignments[block][rotation] || 0;
