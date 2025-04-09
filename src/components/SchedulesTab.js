@@ -1,11 +1,15 @@
 // src/components/SchedulesTab.js
 import React, { useState, useMemo, useRef } from 'react';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Menu, MenuItem, TextField, Checkbox, ListItemText, Switch, FormControlLabel } from '@mui/material';
+import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, ButtonGroup, Menu, MenuItem, TextField, Checkbox, ListItemText, Switch, FormControlLabel, Stack } from '@mui/material';
 import { DndContext, useSensor, useSensors, PointerSensor, useDraggable, useDroppable } from '@dnd-kit/core';
 import { generateSchedule } from '../utils/scheduleUtils';
 import { getBlockDates } from '../utils/uiUtils';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import SaveIcon from '@mui/icons-material/Save';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import DownloadIcon from '@mui/icons-material/Download';
 
 // Function to generate a random hex color
 const getRandomColor = () => {
@@ -21,7 +25,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const [scheduleData, setScheduleData] = useState(generateSchedule(residents, rotations[selectedSet]));
   const [showRotationCounts, setShowRotationCounts] = useState(false);
   const blockDates = getBlockDates();
-  const fileInputRef = useRef(null); // Ref for hidden file input
+  const fileInputRef = useRef(null);
 
   const rotationNames = [
     ...(rotations[selectedSet] || []).filter((r) => r.included).map((r) => r.name),
@@ -32,7 +36,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     'Elective': '#FFD700',
     'NF': '#87CEEB',
     'Team A': '#98FB98',
-    'Team B': '#FFA07A',
+    'Team B': '#85bb74',
     'IMP': '#DDA0DD',
     'MAR': '#F0E68C',
     'CCU Day': '#FFB6C1',
@@ -50,7 +54,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     'Coverage': '#7FFFD4',
     '-': '#F0F0F0',
     'Vacation': '#999999',
-    'Ambulatory': '#d70ee6',
+    'Ambulatory': '#9b5d66',
   };
 
   const rotationOptions = [
@@ -95,7 +99,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       (counts['Team B'] || 0) +
       (counts['IMP'] || 0)
     );
-    counts['Total'] = counts['Nights'] + counts['Units'] + counts['Floors'];
+    counts['Total'] = counts['Nights'] + counts['Units'] + counts['Floors']; 
     return counts;
   };
 
@@ -251,7 +255,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const exportAllTablesToExcel = () => {
     const wb = XLSX.utils.book_new();
 
-    // Table 1: Resident Schedule by Block
     const table1Headers = ['Resident', ...Array.from({ length: 26 }, (_, i) => `Block ${i + 1}\n${blockDates[i]}`)];
     const table1Data = residents
       .filter((resident) => selectedResidents.includes(resident.name))
@@ -259,7 +262,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     const table1Ws = XLSX.utils.aoa_to_sheet([table1Headers, ...table1Data]);
     XLSX.utils.book_append_sheet(wb, table1Ws, 'Resident Schedule');
 
-    // Table 2: Rotation Counts per Resident
     const table2Headers = ['Resident', ...rotationNames, 'Nights', 'Units', 'Floors', 'Total (Nights+Units+Floors)'];
     const table2Data = residents.map((resident) => {
       const counts = getRotationCounts(resident.name);
@@ -275,7 +277,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     });
     XLSX.utils.book_append_sheet(wb, table2Ws, 'Rotation Counts');
 
-    // Table 3: Block Filling Status
     const table3Headers = ['Block', ...rotationNames.map(rotation => `${rotation} (Assigned/Required)`)];
     const table3Data = Array.from({ length: 26 }, (_, block) => {
       const blockNum = block + 1;
@@ -297,14 +298,12 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     saveAs(data, 'Resident_Schedules.xlsx');
   };
 
-  // Save schedule data to JSON file
   const handleSaveSchedule = () => {
     const dataToSave = JSON.stringify(scheduleData, null, 2);
     const blob = new Blob([dataToSave], { type: 'application/json' });
     saveAs(blob, 'schedule_data.json');
   };
 
-  // Load schedule data from JSON file
   const handleLoadSchedule = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -313,7 +312,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     reader.onload = (e) => {
       try {
         const loadedData = JSON.parse(e.target.result);
-        // Basic validation: ensure loaded data matches resident names and block length
         const residentNames = residents.map(r => r.name);
         const isValid = Object.keys(loadedData).every(name => 
           residentNames.includes(name) && 
@@ -322,7 +320,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         );
         if (isValid) {
           setScheduleData(loadedData);
-          setSelectedResidents(residents.map(r => r.name)); // Reset selection
+          setSelectedResidents(residents.map(r => r.name));
         } else {
           alert('Invalid schedule data: Ensure the file matches the resident list and block structure.');
         }
@@ -331,40 +329,53 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       }
     };
     reader.readAsText(file);
-    // Reset file input
     event.target.value = '';
   };
 
-  // Trigger file input click
   const triggerFileInput = () => {
     fileInputRef.current.click();
   };
 
   return (
     <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 1, boxShadow: 1 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Typography variant="h6">Resident Schedule by Block</Typography>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+      {/* Header Section */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h6">Resident Schedule by Block</Typography>
           <FormControlLabel
             control={<Switch checked={showRotationCounts} onChange={(e) => setShowRotationCounts(e.target.checked)} />}
-            label="Show Rotation Counts"
-          />
-          <Button variant="outlined" color="primary" onClick={handleSelectAll}>Select All</Button>
-          <Button variant="outlined" color="primary" onClick={handleUnselectAll}>Unselect All</Button>
-          <Button variant="outlined" color="primary" onClick={handleFilterClick}>Filter</Button>
-          <Button variant="outlined" color="primary" onClick={handleRefresh}>Refresh</Button>
-          <Button variant="outlined" color="primary" onClick={exportAllTablesToExcel}>Export All to Excel</Button>
-          <Button variant="outlined" color="primary" onClick={handleSaveSchedule}>Save Schedule</Button>
-          <Button variant="outlined" color="primary" onClick={triggerFileInput}>Load Schedule</Button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            accept=".json"
-            onChange={handleLoadSchedule}
+            label="Show Counts"
+            sx={{ m: 0 }}
           />
         </Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {/* Filter/Select/Unselect Box */}
+          <ButtonGroup variant="outlined" color="primary" size="small">
+            <Button onClick={handleSelectAll}>Select All</Button>
+            <Button onClick={handleUnselectAll}>Clear All</Button>
+            <Button onClick={handleFilterClick}>Filter</Button>
+          </ButtonGroup>
+        </Box>
+      </Stack>
+
+      {/* Save/Load/Refresh/Export Box */}
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+        <ButtonGroup variant="contained" color="primary" size="small">
+          <Button startIcon={<SaveIcon />} onClick={handleSaveSchedule}>Save</Button>
+          <Button startIcon={<UploadFileIcon />} onClick={triggerFileInput}>Load</Button>
+          <Button startIcon={<RefreshIcon />} onClick={handleRefresh}>Refresh</Button>
+          <Button startIcon={<DownloadIcon />} onClick={exportAllTablesToExcel}>Export</Button>
+        </ButtonGroup>
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept=".json"
+          onChange={handleLoadSchedule}
+        />
       </Box>
+
+      {/* Filter Menu */}
       <Menu anchorEl={filterAnchorEl} open={Boolean(filterAnchorEl)} onClose={handleFilterClose}>
         {residents.map((resident) => (
           <MenuItem key={resident.name} onClick={handleResidentToggle(resident.name)}>
@@ -373,8 +384,10 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
           </MenuItem>
         ))}
       </Menu>
+
+      {/* Table 1 */}
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <TableContainer component={Paper} sx={{ mb: 3, border: '1px solid #e0e0e0', maxHeight: 600, overflow: 'auto' }}>
+        <TableContainer component={Paper} sx={{ mb: 3, border: '1px solid #e0e0e0', maxHeight: 900, overflow: 'auto' }}>
           <Table sx={{ borderCollapse: 'collapse' }}>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f5', position: 'sticky', top: 0, zIndex: 2 }}>
@@ -411,6 +424,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         </TableContainer>
       </DndContext>
 
+      {/* Context Menu */}
       <Menu
         open={contextMenu !== null}
         onClose={handleClose}
@@ -440,6 +454,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         ))}
       </Menu>
 
+      {/* Table 2 */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="h6">Rotation Counts per Resident</Typography>
       </Box>
@@ -478,6 +493,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         </Table>
       </TableContainer>
 
+      {/* Table 3 */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="h6">Block Filling Status</Typography>
       </Box>
