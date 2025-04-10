@@ -4,7 +4,9 @@
 by Berke Cenktug Korucu, MD
 
 Jersey City Medical Center 
+
 Department of Medicine 
+
 PGY-3 Chief Resident
 
 This is a React-based web application designed to manage residents, rotations, and schedules for the JC Internal Medicine Residency Program. It allows users to input resident data, define rotation requirements, review configurations, and generate schedules.
