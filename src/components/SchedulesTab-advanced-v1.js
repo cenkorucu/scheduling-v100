@@ -20,8 +20,6 @@ import {
   Switch,
   FormControlLabel,
   Stack,
-  Tabs,
-  Tab,
 } from '@mui/material';
 import { DndContext, useSensor, useSensors, PointerSensor, useDraggable, useDroppable } from '@dnd-kit/core';
 import { generateMandatorySchedule } from '../utils/mandatoryRotations';
@@ -45,12 +43,6 @@ const getRandomColor = () => {
   return color;
 };
 
-const TabPanel = ({ children, value, index }) => (
-  <div role="tabpanel" hidden={value !== index}>
-    {value === index && <Box sx={{ p: 1 }}>{children}</Box>}
-  </div>
-);
-
 const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const [scheduleData, setScheduleData] = useState(
     Object.fromEntries(residents.map((r) => [r.name, Array(26).fill('-')]))
@@ -58,11 +50,8 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const [rotationCounts, setRotationCounts] = useState(
     Object.fromEntries(residents.map((r) => [r.name, {}]))
   );
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState([]); // History stack for undo
   const [showRotationCounts, setShowRotationCounts] = useState(false);
-  const [showValidationBorders, setShowValidationBorders] = useState(true); // New state for border toggle
-  const [tabValue, setTabValue] = useState(0);
-  const [warningTabValue, setWarningTabValue] = useState(0);
   const blockDates = getBlockDates();
   const fileInputRef = useRef(null);
 
@@ -150,17 +139,8 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     return counts;
   };
 
-  const getValidationIssues = () => {
-    const blockIssues = [];
-    const mandatoryFillingIssues = [];
-    const minIssues = [];
-    const maxIssues = [];
+  const getBlockAssignments = () => {
     const assignments = Array.from({ length: 26 }, () => ({}));
-    const nightRotations = ['NF', 'CCU Night', 'ICU Night', 'MON'];
-    const validAfterNight = ['-', 'Vacation', 'Ambulatory'];
-    const unitDayRotations = ['CCU Day', 'ICU Day'];
-    const teamRotations = ['Team A', 'Team B'];
-
     residents.forEach((resident) => {
       scheduleData[resident.name].forEach((rotation, block) => {
         if (rotation !== '-' && rotation !== 'Vacation') {
@@ -168,121 +148,14 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         }
       });
     });
-
-    residents.forEach((resident) => {
-      const schedule = scheduleData[resident.name];
-      for (let block = 0; block < 26; block++) {
-        const rotation = schedule[block];
-        const prev = block > 0 ? schedule[block - 1] : null;
-        const next = block < 25 ? schedule[block + 1] : null;
-
-        if (nightRotations.includes(rotation)) {
-          if (prev && nightRotations.includes(prev)) {
-            blockIssues.push(`${resident.name}, Block ${block + 1}: Consecutive night rotation with ${prev}`);
-          }
-          if (next && nightRotations.includes(next)) {
-            blockIssues.push(`${resident.name}, Block ${block + 1}: Consecutive night rotation with ${next}`);
-          }
-        }
-
-        if (nightRotations.includes(rotation) && next && !validAfterNight.includes(next)) {
-          blockIssues.push(`${resident.name}, Block ${block + 1}: Invalid rotation ${next} after night rotation`);
-        }
-
-        if (unitDayRotations.includes(rotation) && prev && unitDayRotations.includes(prev)) {
-          blockIssues.push(`${resident.name}, Block ${block + 1}: Consecutive unit day rotation with ${prev}`);
-        }
-
-        if (teamRotations.includes(rotation)) {
-          const windowStart = Math.max(0, block - 3);
-          const windowEnd = Math.min(25, block + 3);
-          let teamCount = 0;
-          for (let i = windowStart; i <= windowEnd; i++) {
-            if (i !== block && teamRotations.includes(schedule[i])) teamCount++;
-          }
-          if (teamCount >= 3) { // Updated: 3 or more is a breach
-            blockIssues.push(`${resident.name}, Block ${block + 1}: Too many team rotations in 4-block window (${teamCount + 1} total)`);
-          }
-        }
-      }
-    });
-
-    const mandatoryRotations = (rotations[selectedSet] || []).filter((r) => r.mandatory && r.included);
-    for (let block = 0; block < 26; block++) {
-      mandatoryRotations.forEach((rotation) => {
-        const assigned = assignments[block][rotation.name] || 0;
-        const required = rotation.requiredPerBlock || 0;
-        if (required > 0 && assigned !== required) {
-          mandatoryFillingIssues.push(`Block ${block + 1}: ${rotation.name} ${assigned < required ? 'underfilled' : 'overfilled'} (${assigned}/${required})`);
-        }
-      });
-    };
-
-    residents.forEach((resident) => {
-      const counts = getRotationCounts(resident.name);
-      (rotations[selectedSet] || []).forEach((rotation) => {
-        const count = counts[rotation.name] || 0;
-        const min = rotation.min || 0;
-        const max = rotation.max || Infinity;
-        if (count < min) {
-          minIssues.push(`${resident.name}: ${rotation.name} below min (${count}/${min})`);
-        }
-        if (count > max) {
-          maxIssues.push(`${resident.name}: ${rotation.name} above max (${count}/${max})`);
-        }
-      });
-    });
-
-    return { blockIssues, mandatoryFillingIssues, minIssues, maxIssues, assignments };
+    return assignments;
   };
 
-  const { blockIssues, mandatoryFillingIssues, minIssues, maxIssues, assignments: blockAssignments } = getValidationIssues();
-
-  const getCellValidation = (residentName, blockIndex) => {
-    const schedule = scheduleData[residentName];
-    const rotation = schedule[blockIndex];
-    const prev = blockIndex > 0 ? schedule[blockIndex - 1] : null;
-    const next = blockIndex < 25 ? schedule[blockIndex + 1] : null;
-    const nightRotations = ['NF', 'CCU Night', 'ICU Night', 'MON'];
-    const validAfterNight = ['-', 'Vacation', 'Ambulatory'];
-    const unitDayRotations = ['CCU Day', 'ICU Day'];
-    const teamRotations = ['Team A', 'Team B'];
-
-    let isBreaching = false;
-
-    if (nightRotations.includes(rotation)) {
-      if (prev && nightRotations.includes(prev)) isBreaching = true;
-      if (next && nightRotations.includes(next)) isBreaching = true;
-    }
-
-    if (nightRotations.includes(rotation) && next && !validAfterNight.includes(next)) {
-      isBreaching = true;
-    }
-
-    if (unitDayRotations.includes(rotation) && prev && unitDayRotations.includes(prev)) {
-      isBreaching = true;
-    }
-
-    if (teamRotations.includes(rotation)) {
-      const windowStart = Math.max(0, blockIndex - 3);
-      const windowEnd = Math.min(25, blockIndex + 3);
-      let teamCount = 0;
-      for (let i = windowStart; i <= windowEnd; i++) {
-        if (i !== blockIndex && teamRotations.includes(schedule[i])) teamCount++;
-      }
-      if (teamCount >= 3) isBreaching = true; // Updated: 3 or more is a breach
-    }
-
-    return isBreaching;
-  };
-
+  // Helper to save current state to history
   const saveToHistory = () => {
     setHistory((prev) => {
-      const newHistory = [...prev, {
-        scheduleData: JSON.parse(JSON.stringify(scheduleData)), // Deep copy
-        rotationCounts: JSON.parse(JSON.stringify(rotationCounts)) // Deep copy
-      }];
-      if (newHistory.length > 10) newHistory.shift();
+      const newHistory = [...prev, { scheduleData, rotationCounts }];
+      if (newHistory.length > 10) newHistory.shift(); // Limit to 10 steps
       return newHistory;
     });
   };
@@ -309,8 +182,8 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
 
   const handleStep3 = () => {
     saveToHistory();
-    setFilterAnchorEl(null);
-    setContextMenu(null);
+    setFilterAnchorEl(null); // Close filter menu
+    setContextMenu(null); // Close context menu
     const { schedule, rotationCounts: updatedRotationCounts } = fillElectives(
       residents,
       rotations[selectedSet],
@@ -333,8 +206,10 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     const lastState = history[history.length - 1];
     setScheduleData(lastState.scheduleData);
     setRotationCounts(lastState.rotationCounts);
-    setHistory((prev) => prev.slice(0, -1));
+    setHistory((prev) => prev.slice(0, -1)); // Remove the last state
   };
+
+  const blockAssignments = getBlockAssignments();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -358,7 +233,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     if (!selectedCell) return;
 
     const { residentName, blockIndex } = selectedCell;
-    saveToHistory();
+    saveToHistory(); // Save state before edit
     if (option === 'Clear') {
       setScheduleData((prev) => ({
         ...prev,
@@ -398,7 +273,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
 
   const handleCustomSubmit = (e) => {
     if (e.key === 'Enter' && customRotation.trim() && selectedCell) {
-      saveToHistory();
+      saveToHistory(); // Save state before edit
       const { residentName, blockIndex } = selectedCell;
       setScheduleData((prev) => ({
         ...prev,
@@ -428,13 +303,12 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     });
 
     const rotationCount = rotationCounts[residentName][rotation] || 0;
-    const isBreaching = getCellValidation(residentName, blockIndex);
 
     const style = {
       transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
       opacity: transform ? 0.5 : 1,
       backgroundColor: isOver ? '#e0e0e0' : rotationColors[rotation] || '#E0E0E0',
-      border: showValidationBorders && isBreaching ? '4px solid #A020F0' : '1px solid #e0e0e0',
+      border: '1px solid #e0e0e0',
       padding: '8px',
       textAlign: 'center',
       cursor: 'grab',
@@ -463,7 +337,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    saveToHistory();
+    saveToHistory(); // Save state before drag
     const [activeResident, activeBlock] = active.id.split('-');
     const [overResident, overBlock] = over.id.split('-');
     const activeBlockIndex = parseInt(activeBlock, 10);
@@ -528,6 +402,13 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       ];
     });
     const table2Ws = XLSX.utils.aoa_to_sheet([table2Headers, ...table2Data]);
+    table2Data.forEach((_, rowIndex) => {
+      const totalCell = XLSX.utils.encode_cell({ r: rowIndex + 1, c: table2Headers.length - 1 });
+      const nightsCell = XLSX.utils.encode_cell({ r: rowIndex + 1, c: table2Headers.indexOf('Nights') });
+      const unitsCell = XLSX.utils.encode_cell({ r: rowIndex + 1, c: table2Headers.indexOf('Units') });
+      const floorsCell = XLSX.utils.encode_cell({ r: rowIndex + 1, c: table2Headers.indexOf('Floors') });
+      table2Ws[totalCell].f = `${nightsCell}+${unitsCell}+${floorsCell}`;
+    });
     XLSX.utils.book_append_sheet(wb, table2Ws, 'Rotation Counts');
 
     const table3Headers = ['Block', ...rotationNames.map((rotation) => `${rotation} (Assigned/Required)`)];
@@ -571,7 +452,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         );
         const isValidCounts = Object.keys(loadedData.rotationCounts).every((name) => residentNames.includes(name));
         if (isValidSchedule && isValidCounts) {
-          saveToHistory();
+          saveToHistory(); // Save current state before loading
           setScheduleData(loadedData.schedule);
           setRotationCounts(loadedData.rotationCounts);
           setSelectedResidents(residents.map((r) => r.name));
@@ -595,18 +476,11 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h6">Resident Schedule by Block</Typography>
-          <Stack direction="column" spacing={0}>
-            <FormControlLabel
-              control={<Switch checked={showRotationCounts} onChange={(e) => setShowRotationCounts(e.target.checked)} />}
-              label="Show Counts"
-              sx={{ m: 0 }}
-            />
-            <FormControlLabel
-              control={<Switch checked={showValidationBorders} onChange={(e) => setShowValidationBorders(e.target.checked)} />}
-              label="Show Validation Borders"
-              sx={{ m: 0 }}
-            />
-          </Stack>
+          <FormControlLabel
+            control={<Switch checked={showRotationCounts} onChange={(e) => setShowRotationCounts(e.target.checked)} />}
+            label="Show Counts"
+            sx={{ m: 0 }}
+          />
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <ButtonGroup variant="outlined" color="primary" size="small">
@@ -655,197 +529,45 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         ))}
       </Menu>
 
-      <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 2 }}>
-        <Tab label="Resident Schedule" />
-        <Tab label="Rotation Counts" />
-        <Tab label="Block Filling" />
-      </Tabs>
-
-      <TabPanel value={tabValue} index={0}>
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <TableContainer component={Paper} sx={{ mb: 3, border: '1px solid #e0e0e0', maxHeight: 900, overflow: 'auto' }}>
-            <Table sx={{ borderCollapse: 'collapse' }}>
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5', position: 'sticky', top: 0, zIndex: 2 }}>
-                  <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold', position: 'sticky', left: 0, bgcolor: '#f5f5f5', zIndex: 3 }}>
-                    Resident
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <TableContainer component={Paper} sx={{ mb: 3, border: '1px solid #e0e0e0', maxHeight: 900, overflow: 'auto' }}>
+          <Table sx={{ borderCollapse: 'collapse' }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f5f5f5', position: 'sticky', top: 0, zIndex: 2 }}>
+                <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold', position: 'sticky', left: 0, bgcolor: '#f5f5f5', zIndex: 3 }}>
+                  Resident
+                </TableCell>
+                {Array.from({ length: 26 }, (_, i) => (
+                  <TableCell key={i} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold', fontSize: '0.8rem' }}>
+                    Block {i + 1}
+                    <br />
+                    {blockDates[i]}
                   </TableCell>
-                  {Array.from({ length: 26 }, (_, i) => (
-                    <TableCell key={i} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold', fontSize: '0.8rem' }}>
-                      Block {i + 1}
-                      <br />
-                      {blockDates[i]}
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {residents
+                .filter((resident) => selectedResidents.includes(resident.name))
+                .map((resident) => (
+                  <TableRow key={resident.name}>
+                    <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, position: 'sticky', left: 0, bgcolor: '#fafafa', zIndex: 1 }}>
+                      {resident.name}
                     </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {residents
-                  .filter((resident) => selectedResidents.includes(resident.name))
-                  .map((resident) => (
-                    <TableRow key={resident.name}>
-                      <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, position: 'sticky', left: 0, bgcolor: '#fafafa', zIndex: 1 }}>
-                        {resident.name}
-                      </TableCell>
-                      {scheduleData[resident.name].map((rotation, blockIndex) => (
-                        <DraggableCell
-                          key={blockIndex}
-                          residentName={resident.name}
-                          blockIndex={blockIndex}
-                          rotation={rotation}
-                        />
-                      ))}
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </DndContext>
-      </TabPanel>
-
-      <TabPanel value={tabValue} index={1}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h6">Rotation Counts per Resident</Typography>
-        </Box>
-        <TableContainer component={Paper} sx={{ mb: 3, border: '1px solid #e0e0e0' }}>
-          <Table sx={{ borderCollapse: 'collapse' }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Resident</TableCell>
-                {rotationNames.map((rotation) => (
-                  <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>
-                    {rotation}
-                  </TableCell>
-                ))}
-                <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Nights</TableCell>
-                <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Units</TableCell>
-                <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Floors</TableCell>
-                <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Total</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {residents.map((resident, index) => {
-                const counts = getRotationCounts(resident.name);
-                return (
-                  <TableRow
-                    key={resident.name}
-                    sx={{
-                      bgcolor: index % 2 === 0 ? '#ffffff' : '#f5f5f5',
-                      '&:hover': { bgcolor: '#e0f7fa' },
-                    }}
-                  >
-                    <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>{resident.name}</TableCell>
-                    {rotationNames.map((rotation) => (
-                      <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>
-                        {counts[rotation]}
-                      </TableCell>
+                    {scheduleData[resident.name].map((rotation, blockIndex) => (
+                      <DraggableCell
+                        key={blockIndex}
+                        residentName={resident.name}
+                        blockIndex={blockIndex}
+                        rotation={rotation}
+                      />
                     ))}
-                    <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Nights']}</TableCell>
-                    <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Units']}</TableCell>
-                    <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Floors']}</TableCell>
-                    <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Total']}</TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </TabPanel>
-
-      <TabPanel value={tabValue} index={2}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h6">Block Filling Status</Typography>
-        </Box>
-        <TableContainer component={Paper} sx={{ border: '1px solid #e0e0e0' }}>
-          <Table sx={{ borderCollapse: 'collapse' }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Block</TableCell>
-                {rotationNames.map((rotation) => (
-                  <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>
-                    {rotation}
-                  </TableCell>
                 ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Array.from({ length: 26 }, (_, block) => {
-                const blockNum = block + 1;
-                return (
-                  <TableRow
-                    key={blockNum}
-                    sx={{
-                      bgcolor: block % 2 === 0 ? '#ffffff' : '#f5f5f5',
-                      '&:hover': { bgcolor: '#b0e0e6', boxShadow: 'inset 0 0 5px rgba(0,0,0,0.2)' },
-                    }}
-                  >
-                    <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>Block {blockNum}</TableCell>
-                    {rotationNames.map((rotation) => {
-                      const assigned = blockAssignments[block][rotation] || 0;
-                      const rotationData = (rotations[selectedSet] || []).find((r) => r.name === rotation);
-                      const required = rotationData?.mandatory && rotationData.requiredPerBlock ? rotationData.requiredPerBlock : 1;
-                      const bgcolor = assigned > required ? '#cce5ff' : assigned === required ? '#ccffcc' : '#ffcccc';
-                      return (
-                        <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, bgcolor }}>
-                          {assigned} / {required}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              })}
             </TableBody>
           </Table>
         </TableContainer>
-      </TabPanel>
-
-      <Box sx={{ mt: 3, p: 2, bgcolor: '#fff3e0', border: '1px solid #ff9800', borderRadius: 1 }}>
-        <Typography variant="h6" color="warning.main">
-          Validation Issues ({blockIssues.length + mandatoryFillingIssues.length + minIssues.length + maxIssues.length})
-        </Typography>
-        <Tabs value={warningTabValue} onChange={(e, newValue) => setWarningTabValue(newValue)} sx={{ mb: 1 }}>
-          <Tab label={`Block Breaches (${blockIssues.length})`} />
-          <Tab label={`Mandatory Filling (${mandatoryFillingIssues.length})`} />
-          <Tab label={`Min Values (${minIssues.length})`} />
-          <Tab label={`Max Values (${maxIssues.length})`} />
-        </Tabs>
-        <TabPanel value={warningTabValue} index={0}>
-          {blockIssues.length > 0 ? (
-            blockIssues.slice(0, 50).map((issue, index) => (
-              <Typography key={index} variant="body2" color="error">{issue}</Typography>
-            ))
-          ) : (
-            <Typography variant="body2" color="textSecondary">No block validation breaches</Typography>
-          )}
-        </TabPanel>
-        <TabPanel value={warningTabValue} index={1}>
-          {mandatoryFillingIssues.length > 0 ? (
-            mandatoryFillingIssues.slice(0, 50).map((issue, index) => (
-              <Typography key={index} variant="body2" color="error">{issue}</Typography>
-            ))
-          ) : (
-            <Typography variant="body2" color="textSecondary">No mandatory filling issues</Typography>
-          )}
-        </TabPanel>
-        <TabPanel value={warningTabValue} index={2}>
-          {minIssues.length > 0 ? (
-            minIssues.slice(0, 50).map((issue, index) => (
-              <Typography key={index} variant="body2" color="error">{issue}</Typography>
-            ))
-          ) : (
-            <Typography variant="body2" color="textSecondary">No minimum value issues</Typography>
-          )}
-        </TabPanel>
-        <TabPanel value={warningTabValue} index={3}>
-          {maxIssues.length > 0 ? (
-            maxIssues.slice(0, 50).map((issue, index) => (
-              <Typography key={index} variant="body2" color="error">{issue}</Typography>
-            ))
-          ) : (
-            <Typography variant="body2" color="textSecondary">No maximum value issues</Typography>
-          )}
-        </TabPanel>
-      </Box>
+      </DndContext>
 
       <Menu
         open={contextMenu !== null}
@@ -875,6 +597,88 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
           </MenuItem>
         ))}
       </Menu>
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6">Rotation Counts per Resident</Typography>
+      </Box>
+      <TableContainer component={Paper} sx={{ mb: 3, border: '1px solid #e0e0e0' }}>
+        <Table sx={{ borderCollapse: 'collapse' }}>
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+              <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Resident</TableCell>
+              {rotationNames.map((rotation) => (
+                <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>
+                  {rotation}
+                </TableCell>
+              ))}
+              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Nights</TableCell>
+              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Units</TableCell>
+              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Floors</TableCell>
+              <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Total</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {residents.map((resident, index) => {
+              const counts = getRotationCounts(resident.name);
+              const rowBgColor = index % 2 === 0 ? '#ffffff' : '#f5f5f5';
+              return (
+                <TableRow key={resident.name} sx={{ bgcolor: rowBgColor }}>
+                  <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>{resident.name}</TableCell>
+                  {rotationNames.map((rotation) => (
+                    <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>
+                      {counts[rotation]}
+                    </TableCell>
+                  ))}
+                  <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Nights']}</TableCell>
+                  <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Units']}</TableCell>
+                  <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Floors']}</TableCell>
+                  <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Total']}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6">Block Filling Status</Typography>
+      </Box>
+      <TableContainer component={Paper} sx={{ border: '1px solid #e0e0e0' }}>
+        <Table sx={{ borderCollapse: 'collapse' }}>
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+              <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>Block</TableCell>
+              {rotationNames.map((rotation) => (
+                <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, fontWeight: 'bold' }}>
+                  {rotation}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {Array.from({ length: 26 }, (_, block) => {
+              const blockNum = block + 1;
+              const rowBgColor = block % 2 === 0 ? '#ffffff' : '#f5f5f5';
+              return (
+                <TableRow key={blockNum} sx={{ bgcolor: rowBgColor }}>
+                  <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>Block {blockNum}</TableCell>
+                  {rotationNames.map((rotation) => {
+                    const assigned = blockAssignments[block][rotation] || 0;
+                    const rotationData = (rotations[selectedSet] || []).find((r) => r.name === rotation);
+                    const required = rotationData?.mandatory && rotationData.requiredPerBlock ? rotationData.requiredPerBlock : 1;
+                    const bgcolor = assigned > required ? '#cce5ff' : assigned === required ? '#ccffcc' : '#ffcccc';
+                    return (
+                      <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1, bgcolor }}>
+                        {assigned} / {required}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 };
