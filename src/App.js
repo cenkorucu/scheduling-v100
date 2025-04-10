@@ -1,3 +1,4 @@
+// src/App.js
 import React, { useState, useEffect } from 'react';
 import { Tabs, Tab, Box, Typography } from '@mui/material';
 import ResidentsTab from './components/ResidentsTab';
@@ -59,7 +60,8 @@ const App = () => {
   return (
     <Box sx={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f5f5' }}>
       <Typography variant="h4" align="center" sx={{ py: 2, bgcolor: '#fff', boxShadow: 1 }}>
-         JC <br />
+        JC <br />
+        Internal Medicine
         Residency Program <br />
         Scheduling App
       </Typography>
@@ -70,9 +72,16 @@ const App = () => {
         <Tab label="Schedules" />
       </Tabs>
       <Box sx={{ flexGrow: 1, p: 2 }}>
-        {tabValue === 0 && <ResidentsTab residents={residents} setResidents={setResidents} />}
+        {tabValue === 0 && <ResidentsTab residents={residents} setResidents={setResidents} setTabValue={setTabValue} />}
         {tabValue === 1 && (
-          <RotationsTab residents={residents} rotations={rotations} setRotations={setRotations} selectedSet={selectedSet} setSelectedSet={setSelectedSet} />
+          <RotationsTab
+            residents={residents}
+            rotations={rotations}
+            setRotations={setRotations}
+            selectedSet={selectedSet}
+            setSelectedSet={setSelectedSet}
+            setTabValue={setTabValue} // Added here
+          />
         )}
         {tabValue === 2 && <ReviewTab residents={residents} rotations={rotations} selectedSet={selectedSet} setTabValue={setTabValue} />}
         {tabValue === 3 && <SchedulesTab residents={residents} rotations={rotations} selectedSet={selectedSet} />}

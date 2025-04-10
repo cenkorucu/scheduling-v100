@@ -1,5 +1,20 @@
 import React from 'react';
-import { Box, Typography, List, ListItem, ListItemText, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import {
+  Box,
+  Typography,
+  List,
+  ListItem,
+  ListItemText,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from '@mui/material';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 const ReviewTab = ({ residents, rotations, selectedSet, setTabValue }) => {
   // Calculate vacation counts per block (1-26)
@@ -10,61 +25,142 @@ const ReviewTab = ({ residents, rotations, selectedSet, setTabValue }) => {
   });
 
   // Filter rotations
-  const mandatoryRotations = rotations[selectedSet].filter(r => r.included && r.mandatory);
-  const nonMandatoryRotations = rotations[selectedSet].filter(r => r.included && !r.mandatory);
+  const mandatoryRotations = rotations[selectedSet].filter((r) => r.included && r.mandatory);
+  const nonMandatoryRotations = rotations[selectedSet].filter((r) => r.included && !r.mandatory);
 
   // Determine cell background color based on vacation count
   const getCellColor = (count) => {
     if (count === 0) return '#cce5ff'; // Blue for 0
-    if (count <= 5) return '#ccffcc';  // Green for 1-5
-    return '#ffcccc';                  // Red for 6+
+    if (count <= 5) return '#ccffcc'; // Green for 1-5
+    return '#ffcccc'; // Red for 6+
   };
 
   return (
     <Box sx={{ bgcolor: '#fff', p: 2, borderRadius: 1, boxShadow: 1 }}>
-      {/* Residents and Preferences */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Residents and Preferences</Typography>
-      <List dense sx={{ bgcolor: '#fafafa', borderRadius: 1, mb: 2 }}>
-        {residents.map((resident, index) => (
-          <ListItem key={index} sx={{ py: 0.5 }}>
-            <ListItemText primary={`${resident.name} - Group: ${resident.group}, Vacation 1: ${resident.vacation1}, Vacation 2: ${resident.vacation2}`} />
-          </ListItem>
-        ))}
-      </List>
+      {/* Header with Review title and Create Schedule button */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">Review</Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          size="small"
+          onClick={() => setTabValue(3)}
+          endIcon={<ArrowForwardIcon />}
+        >
+          Create Schedule
+        </Button>
+      </Box>
 
-      {/* Mandatory Rotations */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Mandatory Rotations</Typography>
-      <List dense sx={{ bgcolor: '#fafafa', borderRadius: 1, mb: 2 }}>
-        {mandatoryRotations.map((rotation, index) => (
-          <ListItem key={index} sx={{ py: 0.5 }}>
-            <ListItemText
-              primary={`${rotation.name} - Required: ${rotation.requiredPerBlock}, ${rotation.type === 'minMax' ? `Min: ${rotation.min}, Max: ${rotation.max}` : `Exact: ${rotation.exact}`}`}
-            />
-          </ListItem>
-        ))}
-      </List>
+      {/* Flex container for the first three boxes */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 2,
+          justifyContent: 'space-between',
+          mb: 2,
+        }}
+      >
+        {/* Residents and Preferences */}
+        <Box
+          sx={{
+            flex: '1 1 300px',
+            maxWidth: '400px',
+            bgcolor: '#fafafa',
+            borderRadius: 1,
+            p: 2,
+            border: '1px solid #eee',
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Residents and Preferences
+          </Typography>
+          <List dense>
+            {residents.map((resident, index) => (
+              <ListItem key={index} sx={{ py: 1 }}>
+                <ListItemText
+                  primary={resident.name}
+                  secondary={`Group: ${resident.group} | Vacation 1: ${resident.vacation1} | Vacation 2: ${resident.vacation2}`}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
 
-      {/* Non-Mandatory Rotations */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Non-Mandatory Rotations</Typography>
-      <List dense sx={{ bgcolor: '#fafafa', borderRadius: 1, mb: 2 }}>
-        {nonMandatoryRotations.map((rotation, index) => (
-          <ListItem key={index} sx={{ py: 0.5 }}>
-            <ListItemText
-              primary={`${rotation.name} - ${rotation.type === 'minMax' ? `Min: ${rotation.min}, Max: ${rotation.max}` : `Exact: ${rotation.exact}`}`}
-            />
-          </ListItem>
-        ))}
-      </List>
+        {/* Mandatory Rotations */}
+        <Box
+          sx={{
+            flex: '1 1 300px',
+            maxWidth: '400px',
+            bgcolor: '#fafafa',
+            borderRadius: 1,
+            p: 2,
+            border: '1px solid #eee',
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Mandatory Rotations
+          </Typography>
+          <List dense>
+            {mandatoryRotations.map((rotation, index) => (
+              <ListItem key={index} sx={{ py: 1 }}>
+                <ListItemText
+                  primary={rotation.name}
+                  secondary={`Required: ${rotation.requiredPerBlock} | ${
+                    rotation.type === 'minMax'
+                      ? `Min: ${rotation.min}, Max: ${rotation.max}`
+                      : `Exact: ${rotation.exact}`
+                  }`}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+
+        {/* Non-Mandatory Rotations */}
+        <Box
+          sx={{
+            flex: '1 1 300px',
+            maxWidth: '400px',
+            bgcolor: '#fafafa',
+            borderRadius: 1,
+            p: 2,
+            border: '1px solid #eee',
+          }}
+        >
+          <Typography variant="subtitle1" sx={{ mb: 1 }}>
+            Non-Mandatory Rotations
+          </Typography>
+          <List dense>
+            {nonMandatoryRotations.map((rotation, index) => (
+              <ListItem key={index} sx={{ py: 1 }}>
+                <ListItemText
+                  primary={rotation.name}
+                  secondary={
+                    rotation.type === 'minMax'
+                      ? `Min: ${rotation.min}, Max: ${rotation.max}`
+                      : `Exact: ${rotation.exact}`
+                  }
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Box>
 
       {/* Vacation Crosstab */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Vacation Overview</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Vacation Overview
+      </Typography>
       <TableContainer component={Paper} sx={{ bgcolor: '#fafafa', mb: 2 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell sx={{ py: 0.5 }}></TableCell>
               {Array.from({ length: 26 }, (_, i) => (
-                <TableCell key={i} align="center" sx={{ py: 0.5 }}>{i + 1}</TableCell>
+                <TableCell key={i} align="center" sx={{ py: 0.5 }}>
+                  {i + 1}
+                </TableCell>
               ))}
             </TableRow>
           </TableHead>
@@ -84,16 +180,6 @@ const ReviewTab = ({ residents, rotations, selectedSet, setTabValue }) => {
           </TableBody>
         </Table>
       </TableContainer>
-
-      {/* Create Schedule Button */}
-      <Button
-        variant="contained"
-        color="primary"
-        size="small"
-        onClick={() => setTabValue(3)}
-      >
-        Create Schedule
-      </Button>
     </Box>
   );
 };
