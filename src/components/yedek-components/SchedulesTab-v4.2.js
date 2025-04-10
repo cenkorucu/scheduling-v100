@@ -2,8 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Menu, MenuItem, TextField, Checkbox, ListItemText } from '@mui/material';
 import { DndContext, useSensor, useSensors, PointerSensor, useDraggable, useDroppable } from '@dnd-kit/core';
-import { generateSchedule } from '../utils/scheduleUtils';
-import { getBlockDates } from '../utils/uiUtils';
+import { generateSchedule } from '../../utils/scheduleUtils';
+import { getBlockDates } from '../../utils/uiUtils';
 
 // Function to generate a random hex color
 const getRandomColor = () => {

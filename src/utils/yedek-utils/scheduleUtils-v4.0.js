@@ -296,7 +296,7 @@ export const generateSchedule = (residents, rotations) => {
         });
       }
   
-      // Part 2: Adjust Resident Rotation Counts (Remove Extra)
+      // step10: Adjust Resident Rotation Counts (Remove Extra)
       residents.forEach((resident) => {
         rotations.forEach((rotation) => {
           const currentCount = rotationCounts[resident.name][rotation.name] || 0;
