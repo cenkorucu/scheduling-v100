@@ -1,5 +1,4 @@
-// src/components/SchedulesTab.js
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -55,10 +54,16 @@ const TabPanel = ({ children, value, index }) => (
   </div>
 );
 
-const SchedulesTab = ({ residents, rotations, selectedSet }) => {
-  const [scheduleData, setScheduleData] = useState(
-    Object.fromEntries(residents.map((r) => [r.name, Array(26).fill('-')]))
-  );
+const SchedulesTab = ({ residents = [], rotations = {}, selectedSet = '' }) => {
+  const initialScheduleRef = useRef(null);
+  if (!initialScheduleRef.current) {
+    initialScheduleRef.current = Object.fromEntries(residents.map((r) => [r.name, Array(26).fill('-')]));
+  }
+
+  const [scheduleData, setScheduleData] = useState(() => {
+    const saved = localStorage.getItem('scheduleData');
+    return saved ? JSON.parse(saved) : initialScheduleRef.current;
+  });
   const [rotationCounts, setRotationCounts] = useState(
     Object.fromEntries(residents.map((r) => [r.name, {}]))
   );
@@ -67,15 +72,63 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const [showValidationBorders, setShowValidationBorders] = useState(true);
   const [tabValue, setTabValue] = useState(0);
   const [warningTabValue, setWarningTabValue] = useState(0);
-  const [filters, setFilters] = useState({}); // Rotation count filters
+  const [filters, setFilters] = useState({});
   const [selectedResidents, setSelectedResidents] = useState(residents.map((r) => r.name));
+  const [customRotationColors, setCustomRotationColors] = useState({});
   const blockDates = getBlockDates();
   const fileInputRef = useRef(null);
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [customRotation, setCustomRotation] = useState('');
+  const [selectedCell, setSelectedCell] = useState(null);
 
-  const rotationNames = [
-    ...(rotations[selectedSet] || []).filter((r) => r.included).map((r) => r.name),
-    ...(rotations[selectedSet] && rotations[selectedSet].some((r) => r.name === 'Ambulatory') ? [] : ['Ambulatory']),
+  // Log props for debugging
+  useEffect(() => {
+    console.log('SchedulesTab props:', { residents, rotations, selectedSet });
+    console.log('SchedulesTab mounted');
+    return () => console.log('SchedulesTab unmounted');
+  }, [residents, rotations, selectedSet]);
+
+  // Persist scheduleData
+  useEffect(() => {
+    localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
+    console.log('scheduleData updated:', scheduleData);
+  }, [scheduleData]);
+
+  // Safely compute rotationNames
+  const rotationNames = useMemo(() => {
+    const setRotations = rotations[selectedSet] || [];
+    const hasAmbulatory = setRotations.some((r) => r.name === 'Ambulatory');
+    return [
+      ...setRotations.filter((r) => r.included).map((r) => r.name),
+      ...(hasAmbulatory ? [] : ['Ambulatory']),
+    ];
+  }, [rotations, selectedSet]);
+
+  // Define rotationOptions and staticRotationColors statically
+  const rotationOptions = [
+    'Clear',
+    'Elective',
+    'NF',
+    'Team A',
+    'Team B',
+    'IMP',
+    'MAR',
+    'CCU Day',
+    'CCU Night',
+    'ICU Day',
+    'ICU Night',
+    'Geriatrics',
+    'ID',
+    'Cardio',
+    'Neuro',
+    'Renal',
+    'ED',
+    'MON',
+    'MOD',
+    'Coverage',
+    'Ambulatory',
+    'Custom',
   ];
 
   const staticRotationColors = {
@@ -103,21 +156,11 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     Ambulatory: '#9b5d66',
   };
 
-  const rotationOptions = [
-    'Clear', 'Elective', 'NF', 'Team A', 'Team B', 'IMP', 'MAR', 'CCU Day', 'CCU Night',
-    'ICU Day', 'ICU Night', 'Geriatrics', 'ID', 'Cardio', 'Neuro', 'Renal', 'ED',
-    'MON', 'MOD', 'Coverage', 'Ambulatory', 'Custom'
-  ];
-
-  const [customRotationColors, setCustomRotationColors] = useState({});
-  const [contextMenu, setContextMenu] = useState(null);
-  const [customRotation, setCustomRotation] = useState('');
-  const [selectedCell, setSelectedCell] = useState(null);
-
+  // Compute rotationColors without state update
   const rotationColors = useMemo(() => {
     const allRotations = new Set([
-      ...Object.keys(scheduleData).flatMap((name) => scheduleData[name]),
-      ...rotationOptions.filter((opt) => opt !== 'Clear' && opt !== 'Custom'),
+      ...Object.keys(scheduleData).flatMap((name) => scheduleData[name] || []),
+      ...(rotationOptions.filter((opt) => opt !== 'Clear' && opt !== 'Custom') || []),
     ]);
     const updatedCustomColors = { ...customRotationColors };
     allRotations.forEach((rotation) => {
@@ -125,35 +168,51 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         updatedCustomColors[rotation] = getRandomColor();
       }
     });
-    setCustomRotationColors(updatedCustomColors);
     return { ...staticRotationColors, ...updatedCustomColors };
+  }, [scheduleData, customRotationColors]);
+
+  // Update customRotationColors when new rotations appear
+  useEffect(() => {
+    const allRotations = new Set([
+      ...Object.keys(scheduleData).flatMap((name) => scheduleData[name] || []),
+      ...(rotationOptions.filter((opt) => opt !== 'Clear' && opt !== 'Custom') || []),
+    ]);
+    setCustomRotationColors((prev) => {
+      const updated = { ...prev };
+      allRotations.forEach((rotation) => {
+        if (!staticRotationColors[rotation] && !updated[rotation] && rotation) {
+          updated[rotation] = getRandomColor();
+        }
+      });
+      return updated;
+    });
   }, [scheduleData]);
 
-  const getRotationCounts = (residentName) => {
-    const counts = {};
-    rotationNames.forEach((rotation) => {
-      counts[rotation] = scheduleData[residentName].filter((block) => block === rotation).length;
-    });
-    counts['Nights'] = (
-      (counts['NF'] || 0) +
-      (counts['CCU Night'] || 0) +
-      (counts['ICU Night'] || 0) +
-      (counts['MON'] || 0)
-    );
-    counts['Units'] = (
-      (counts['ICU Day'] || 0) +
-      (counts['CCU Day'] || 0)
-    );
-    counts['Floors'] = (
-      (counts['Team A'] || 0) +
-      (counts['Team B'] || 0) +
-      (counts['IMP'] || 0) +
-      (counts['MAR'] || 0) +
-      (counts['MOD'] || 0)
-    );
-    counts['Total'] = counts['Nights'] + counts['Units'] + counts['Floors'];
-    return counts;
-  };
+  const getRotationCounts = useCallback(
+    (residentName) => {
+      const counts = {};
+      rotationNames.forEach((rotation) => {
+        counts[rotation] = scheduleData[residentName]?.filter((block) => block === rotation).length || 0;
+      });
+      counts['Nights'] = (
+        (counts['NF'] || 0) +
+        (counts['CCU Night'] || 0) +
+        (counts['ICU Night'] || 0) +
+        (counts['MON'] || 0)
+      );
+      counts['Units'] = (counts['ICU Day'] || 0) + (counts['CCU Day'] || 0);
+      counts['Floors'] = (
+        (counts['Team A'] || 0) +
+        (counts['Team B'] || 0) +
+        (counts['IMP'] || 0) +
+        (counts['MAR'] || 0) +
+        (counts['MOD'] || 0)
+      );
+      counts['Total'] = counts['Nights'] + counts['Units'] + counts['Floors'];
+      return counts;
+    },
+    [scheduleData, rotationNames]
+  );
 
   const getRotationFilterOptions = () => {
     const options = {};
@@ -164,9 +223,11 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         options[rotation].add(count);
       });
     });
-    return Object.fromEntries(
+    const result = Object.fromEntries(
       Object.entries(options).map(([rotation, counts]) => [rotation, Array.from(counts).sort((a, b) => a - b)])
     );
+    console.log('getRotationFilterOptions:', result);
+    return result;
   };
 
   const rotationFilterOptions = getRotationFilterOptions();
@@ -174,19 +235,40 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const handleFilterChange = (rotation, count) => {
     setFilters((prev) => {
       const newFilters = { ...prev };
-      if (!newFilters[rotation]) newFilters[rotation] = [];
-      const index = newFilters[rotation].indexOf(count);
-      if (index === -1) {
-        newFilters[rotation].push(count);
+      const currentCounts = newFilters[rotation] || [];
+      if (currentCounts.includes(count)) {
+        newFilters[rotation] = currentCounts.filter((c) => c !== count);
+        if (newFilters[rotation].length === 0) {
+          delete newFilters[rotation];
+        }
       } else {
-        newFilters[rotation].splice(index, 1);
-        if (newFilters[rotation].length === 0) delete newFilters[rotation];
+        newFilters[rotation] = [...currentCounts, count].sort((a, b) => a - b);
       }
+      console.log('handleFilterChange - New filters:', newFilters);
       return newFilters;
     });
   };
 
-  // Updated validation logic
+  const computeFilteredResidents = useMemo(() => {
+    console.log('computeFilteredResidents - Filters:', filters, 'ScheduleData:', scheduleData);
+    let filtered = residents.map((r) => r.name);
+    if (Object.keys(filters).length > 0) {
+      filtered = residents.filter((resident) => {
+        const counts = getRotationCounts(resident.name);
+        return Object.entries(filters).every(([rotation, selectedCounts]) => {
+          const residentCount = counts[rotation] || 0;
+          return selectedCounts.includes(residentCount);
+        });
+      }).map((r) => r.name);
+    }
+    console.log('computeFilteredResidents - Result:', filtered);
+    return filtered.length > 0 ? filtered : residents.map((r) => r.name);
+  }, [filters, scheduleData, residents, getRotationCounts]);
+
+  useEffect(() => {
+    setSelectedResidents(computeFilteredResidents);
+  }, [computeFilteredResidents, filters]);
+
   const getValidationIssues = () => {
     const blockIssues = [];
     const mandatoryFillingIssues = [];
@@ -196,13 +278,14 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     const nightRotations = ['NF', 'CCU Night', 'ICU Night', 'MON'];
     const validAfterNight = [
       '-', 'Vacation', 'Ambulatory', 'Elective',
-      ...((rotations[selectedSet] || []).filter((r) => !r.mandatory && r.included).map((r) => r.name))
+      ...((rotations[selectedSet] || []).filter((r) => r.included && !r.mandatory).map((r) => r.name)),
     ];
     const unitDayRotations = ['CCU Day', 'ICU Day'];
     const teamRotations = ['Team A', 'Team B'];
 
     residents.forEach((resident) => {
-      scheduleData[resident.name].forEach((rotation, block) => {
+      const schedule = scheduleData[resident.name] || Array(26).fill('-');
+      schedule.forEach((rotation, block) => {
         if (rotation !== '-' && rotation !== 'Vacation') {
           assignments[block][rotation] = (assignments[block][rotation] || 0) + 1;
         }
@@ -210,7 +293,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     });
 
     residents.forEach((resident) => {
-      const schedule = scheduleData[resident.name];
+      const schedule = scheduleData[resident.name] || Array(26).fill('-');
       for (let block = 0; block < 26; block++) {
         const rotation = schedule[block];
         const prev = block > 0 ? schedule[block - 1] : null;
@@ -279,14 +362,14 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const { blockIssues, mandatoryFillingIssues, minIssues, maxIssues, assignments: blockAssignments } = getValidationIssues();
 
   const getCellValidation = (residentName, blockIndex) => {
-    const schedule = scheduleData[residentName];
+    const schedule = scheduleData[residentName] || Array(26).fill('-');
     const rotation = schedule[blockIndex];
     const prev = blockIndex > 0 ? schedule[blockIndex - 1] : null;
     const next = blockIndex < 25 ? schedule[blockIndex + 1] : null;
     const nightRotations = ['NF', 'CCU Night', 'ICU Night', 'MON'];
     const validAfterNight = [
       '-', 'Vacation', 'Ambulatory', 'Elective',
-      ...((rotations[selectedSet] || []).filter((r) => !r.mandatory && r.included).map((r) => r.name))
+      ...((rotations[selectedSet] || []).filter((r) => r.included && !r.mandatory).map((r) => r.name)),
     ];
     const unitDayRotations = ['CCU Day', 'ICU Day'];
     const teamRotations = ['Team A', 'Team B'];
@@ -319,29 +402,11 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     return isBreaching;
   };
 
-  // Apply filters
-  useEffect(() => {
-    let filtered = residents.map((r) => r.name);
-
-    // Apply rotation count filters
-    if (Object.keys(filters).length > 0) {
-      filtered = filtered.filter((residentName) => {
-        const counts = getRotationCounts(residentName);
-        return Object.entries(filters).every(([rotation, selectedCounts]) => {
-          const residentCount = counts[rotation] || 0;
-          return selectedCounts.length === 0 || selectedCounts.includes(residentCount);
-        });
-      });
-    }
-
-    setSelectedResidents(filtered.length > 0 ? filtered : residents.map((r) => r.name));
-  }, [filters, scheduleData]);
-
   const saveToHistory = () => {
     setHistory((prev) => {
       const newHistory = [...prev, {
         scheduleData: JSON.parse(JSON.stringify(scheduleData)),
-        rotationCounts: JSON.parse(JSON.stringify(rotationCounts))
+        rotationCounts: JSON.parse(JSON.stringify(rotationCounts)),
       }];
       if (newHistory.length > 10) newHistory.shift();
       return newHistory;
@@ -350,9 +415,23 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
 
   const handleStep1 = () => {
     saveToHistory();
-    const { schedule, rotationCounts: updatedRotationCounts } = generateMandatorySchedule(residents, rotations[selectedSet]);
-    setScheduleData(schedule);
-    setRotationCounts(updatedRotationCounts);
+    let attempts = 0;
+    const maxAttempts = 25;
+    let schedule, updatedRotationCounts, breaches;
+
+    do {
+      ({ schedule, rotationCounts: updatedRotationCounts } = generateMandatorySchedule(residents, rotations[selectedSet] || []));
+      setScheduleData(schedule);
+      setRotationCounts(updatedRotationCounts);
+      const { blockIssues } = getValidationIssues();
+      breaches = blockIssues.length;
+      attempts++;
+    } while (breaches > 2 && attempts < maxAttempts);
+
+    if (breaches > 2) {
+      console.warn(`Max attempts (${maxAttempts}) reached. Best schedule has ${breaches} block breaches.`);
+    }
+
     setSelectedResidents(residents.map((r) => r.name));
   };
 
@@ -360,7 +439,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     saveToHistory();
     const { schedule, rotationCounts: updatedRotationCounts } = generateNonMandatorySchedule(
       residents,
-      rotations[selectedSet],
+      rotations[selectedSet] || [],
       scheduleData,
       rotationCounts
     );
@@ -374,7 +453,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     setContextMenu(null);
     const { schedule, rotationCounts: updatedRotationCounts } = fillElectives(
       residents,
-      rotations[selectedSet],
+      rotations[selectedSet] || [],
       scheduleData,
       rotationCounts
     );
@@ -386,6 +465,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     saveToHistory();
     setScheduleData(Object.fromEntries(residents.map((r) => [r.name, Array(26).fill('-')])));
     setRotationCounts(Object.fromEntries(residents.map((r) => [r.name, {}])));
+    setFilters({});
     setSelectedResidents(residents.map((r) => r.name));
   };
 
@@ -488,7 +568,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       id: `${residentName}-${blockIndex}`,
     });
 
-    const rotationCount = rotationCounts[residentName][rotation] || 0;
+    const rotationCount = rotationCounts[residentName]?.[rotation] || 0;
     const isBreaching = getCellValidation(residentName, blockIndex);
 
     const style = {
@@ -531,25 +611,25 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     const overBlockIndex = parseInt(overBlock, 10);
 
     setScheduleData((prev) => {
-      const newSchedule = { ...prev };
-      newSchedule[activeResident] = [...newSchedule[activeResident]];
-      newSchedule[overResident] = [...newSchedule[overResident]];
+      const newSchedule = JSON.parse(JSON.stringify(prev));
       const activeRotation = newSchedule[activeResident][activeBlockIndex];
       const overRotation = newSchedule[overResident][overBlockIndex];
       newSchedule[activeResident][activeBlockIndex] = overRotation;
       newSchedule[overResident][overBlockIndex] = activeRotation;
 
-      const newRotationCounts = { ...rotationCounts };
-      [activeResident, overResident].forEach((residentName) => {
-        newRotationCounts[residentName] = {};
-        newSchedule[residentName].forEach((rotation) => {
+      const newRotationCounts = {};
+      residents.forEach((resident) => {
+        newRotationCounts[resident.name] = {};
+        newSchedule[resident.name].forEach((rotation) => {
           if (rotation !== '-') {
-            newRotationCounts[residentName][rotation] = (newRotationCounts[residentName][rotation] || 0) + 1;
+            newRotationCounts[resident.name][rotation] = (newRotationCounts[resident.name][rotation] || 0) + 1;
           }
         });
       });
 
+      console.log('handleDragEnd - New scheduleData:', newSchedule, 'New rotationCounts:', newRotationCounts);
       setRotationCounts(newRotationCounts);
+      setFilters({});
       return newSchedule;
     });
   };
@@ -572,7 +652,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     const table1Headers = ['Resident', ...Array.from({ length: 26 }, (_, i) => `Block ${i + 1}\n${blockDates[i]}`)];
     const table1Data = residents
       .filter((resident) => selectedResidents.includes(resident.name))
-      .map((resident) => [resident.name, ...scheduleData[resident.name]]);
+      .map((resident) => [resident.name, ...(scheduleData[resident.name] || Array(26).fill('-'))]);
     const table1Ws = XLSX.utils.aoa_to_sheet([table1Headers, ...table1Data]);
     XLSX.utils.book_append_sheet(wb, table1Ws, 'Resident Schedule');
 
@@ -581,7 +661,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
       const counts = getRotationCounts(resident.name);
       return [
         resident.name,
-        ...rotationNames.map((rotation) => counts[rotation]),
+        ...rotationNames.map((rotation) => counts[rotation] || 0),
         counts['Nights'],
         counts['Units'],
         counts['Floors'],
@@ -707,7 +787,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         />
       </Box>
 
-      {/* Filter by Rotation Counts */}
       <Accordion sx={{ mb: 2 }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography>Filter by Rotation Counts</Typography>
@@ -724,6 +803,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                       <Checkbox
                         checked={filters[rotation]?.includes(count) || false}
                         onChange={() => handleFilterChange(rotation, count)}
+                        value={count}
                       />
                     }
                     label={`${count}`}
@@ -735,7 +815,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         </AccordionDetails>
       </Accordion>
 
-      {/* Filter by Name */}
       <Menu anchorEl={filterAnchorEl} open={Boolean(filterAnchorEl)} onClose={handleFilterClose}>
         {residents.map((resident) => (
           <MenuItem key={resident.name} onClick={handleResidentToggle(resident.name)}>
@@ -745,7 +824,14 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         ))}
       </Menu>
 
-      <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 2 }}>
+      <Tabs
+        value={tabValue}
+        onChange={(e, newValue) => {
+          console.log('Switching to tab:', newValue);
+          setTabValue(newValue);
+        }}
+        sx={{ mb: 2 }}
+      >
         <Tab label="Resident Schedule" />
         <Tab label="Rotation Counts" />
         <Tab label="Block Filling" />
@@ -770,6 +856,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                 </TableRow>
               </TableHead>
               <TableBody>
+                {console.log('Rendering TableBody - selectedResidents:', selectedResidents, 'scheduleData:', scheduleData)}
                 {residents
                   .filter((resident) => selectedResidents.includes(resident.name))
                   .map((resident) => (
@@ -777,7 +864,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                       <TableCell sx={{ border: '1px solid #e0e0e0', p: 1, position: 'sticky', left: 0, bgcolor: '#fafafa', zIndex: 1 }}>
                         {resident.name}
                       </TableCell>
-                      {scheduleData[resident.name].map((rotation, blockIndex) => (
+                      {(scheduleData[resident.name] || Array(26).fill('-')).map((rotation, blockIndex) => (
                         <DraggableCell
                           key={blockIndex}
                           residentName={resident.name}
@@ -827,7 +914,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                     <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>{resident.name}</TableCell>
                     {rotationNames.map((rotation) => (
                       <TableCell key={rotation} align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>
-                        {counts[rotation]}
+                        {counts[rotation] || 0}
                       </TableCell>
                     ))}
                     <TableCell align="center" sx={{ border: '1px solid #e0e0e0', p: 1 }}>{counts['Nights']}</TableCell>
