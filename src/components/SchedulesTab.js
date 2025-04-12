@@ -1,3 +1,4 @@
+// src/components/SchedulesTab.js
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Box,
@@ -55,15 +56,9 @@ const TabPanel = ({ children, value, index }) => (
 );
 
 const SchedulesTab = ({ residents, rotations, selectedSet }) => {
-  const initialScheduleRef = useRef(null);
-  if (!initialScheduleRef.current) {
-    initialScheduleRef.current = Object.fromEntries(residents.map((r) => [r.name, Array(26).fill('-')]));
-  }
-
-  const [scheduleData, setScheduleData] = useState(() => {
-    const saved = localStorage.getItem('scheduleData');
-    return saved ? JSON.parse(saved) : initialScheduleRef.current;
-  });
+  const [scheduleData, setScheduleData] = useState(
+    Object.fromEntries(residents.map((r) => [r.name, Array(26).fill('-')]))
+  );
   const [rotationCounts, setRotationCounts] = useState(
     Object.fromEntries(residents.map((r) => [r.name, {}]))
   );
@@ -72,21 +67,11 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const [showValidationBorders, setShowValidationBorders] = useState(true);
   const [tabValue, setTabValue] = useState(0);
   const [warningTabValue, setWarningTabValue] = useState(0);
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState({}); // Rotation count filters
   const [selectedResidents, setSelectedResidents] = useState(residents.map((r) => r.name));
   const blockDates = getBlockDates();
   const fileInputRef = useRef(null);
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
-
-  useEffect(() => {
-    localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
-    console.log('scheduleData updated:', scheduleData);
-  }, [scheduleData]);
-
-  useEffect(() => {
-    console.log('SchedulesTab mounted with props:', { residents, rotations, selectedSet });
-    return () => console.log('SchedulesTab unmounted');
-  }, [residents, rotations, selectedSet]);
 
   const rotationNames = [
     ...(rotations[selectedSet] || []).filter((r) => r.included).map((r) => r.name),
@@ -179,11 +164,9 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         options[rotation].add(count);
       });
     });
-    const result = Object.fromEntries(
+    return Object.fromEntries(
       Object.entries(options).map(([rotation, counts]) => [rotation, Array.from(counts).sort((a, b) => a - b)])
     );
-    console.log('getRotationFilterOptions:', result);
-    return result;
   };
 
   const rotationFilterOptions = getRotationFilterOptions();
@@ -191,41 +174,19 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
   const handleFilterChange = (rotation, count) => {
     setFilters((prev) => {
       const newFilters = { ...prev };
-      const currentCounts = newFilters[rotation] || [];
-      if (currentCounts.includes(count)) {
-        newFilters[rotation] = currentCounts.filter((c) => c !== count);
-        if (newFilters[rotation].length === 0) {
-          delete newFilters[rotation];
-        }
+      if (!newFilters[rotation]) newFilters[rotation] = [];
+      const index = newFilters[rotation].indexOf(count);
+      if (index === -1) {
+        newFilters[rotation].push(count);
       } else {
-        newFilters[rotation] = [...currentCounts, count].sort((a, b) => a - b);
+        newFilters[rotation].splice(index, 1);
+        if (newFilters[rotation].length === 0) delete newFilters[rotation];
       }
-      console.log('handleFilterChange - New filters:', newFilters);
       return newFilters;
     });
   };
 
-  const computeFilteredResidents = useMemo(() => {
-    console.log('computeFilteredResidents - Filters:', filters, 'ScheduleData:', scheduleData);
-    let filtered = residents.map((r) => r.name);
-    if (Object.keys(filters).length > 0) {
-      filtered = residents.filter((resident) => {
-        const counts = getRotationCounts(resident.name);
-        return Object.entries(filters).every(([rotation, selectedCounts]) => {
-          const residentCount = counts[rotation] || 0;
-          return selectedCounts.includes(residentCount);
-        });
-      }).map((r) => r.name);
-    }
-    console.log('computeFilteredResidents - Result:', filtered);
-    return filtered.length > 0 ? filtered : residents.map((r) => r.name);
-  }, [filters, scheduleData, residents]);
-
-  useEffect(() => {
-    console.log('useEffect - Setting selectedResidents with filters:', filters);
-    setSelectedResidents(computeFilteredResidents);
-  }, [computeFilteredResidents]);
-
+  // Updated validation logic
   const getValidationIssues = () => {
     const blockIssues = [];
     const mandatoryFillingIssues = [];
@@ -358,6 +319,24 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     return isBreaching;
   };
 
+  // Apply filters
+  useEffect(() => {
+    let filtered = residents.map((r) => r.name);
+
+    // Apply rotation count filters
+    if (Object.keys(filters).length > 0) {
+      filtered = filtered.filter((residentName) => {
+        const counts = getRotationCounts(residentName);
+        return Object.entries(filters).every(([rotation, selectedCounts]) => {
+          const residentCount = counts[rotation] || 0;
+          return selectedCounts.length === 0 || selectedCounts.includes(residentCount);
+        });
+      });
+    }
+
+    setSelectedResidents(filtered.length > 0 ? filtered : residents.map((r) => r.name));
+  }, [filters, scheduleData]);
+
   const saveToHistory = () => {
     setHistory((prev) => {
       const newHistory = [...prev, {
@@ -371,23 +350,9 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
 
   const handleStep1 = () => {
     saveToHistory();
-    let attempts = 0;
-    const maxAttempts = 250;
-    let schedule, updatedRotationCounts, breaches;
-
-    do {
-      ({ schedule, rotationCounts: updatedRotationCounts } = generateMandatorySchedule(residents, rotations[selectedSet]));
-      setScheduleData(schedule);
-      setRotationCounts(updatedRotationCounts);
-      const { blockIssues } = getValidationIssues();
-      breaches = blockIssues.length;
-      attempts++;
-    } while (breaches > 2 && attempts < maxAttempts);
-
-    if (breaches > 2) {
-      console.warn(`Max attempts (${maxAttempts}) reached. Best schedule has ${breaches} block breaches.`);
-    }
-
+    const { schedule, rotationCounts: updatedRotationCounts } = generateMandatorySchedule(residents, rotations[selectedSet]);
+    setScheduleData(schedule);
+    setRotationCounts(updatedRotationCounts);
     setSelectedResidents(residents.map((r) => r.name));
   };
 
@@ -421,7 +386,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     saveToHistory();
     setScheduleData(Object.fromEntries(residents.map((r) => [r.name, Array(26).fill('-')])));
     setRotationCounts(Object.fromEntries(residents.map((r) => [r.name, {}])));
-    setFilters({});
     setSelectedResidents(residents.map((r) => r.name));
   };
 
@@ -567,25 +531,25 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
     const overBlockIndex = parseInt(overBlock, 10);
 
     setScheduleData((prev) => {
-      const newSchedule = JSON.parse(JSON.stringify(prev));
+      const newSchedule = { ...prev };
+      newSchedule[activeResident] = [...newSchedule[activeResident]];
+      newSchedule[overResident] = [...newSchedule[overResident]];
       const activeRotation = newSchedule[activeResident][activeBlockIndex];
       const overRotation = newSchedule[overResident][overBlockIndex];
       newSchedule[activeResident][activeBlockIndex] = overRotation;
       newSchedule[overResident][overBlockIndex] = activeRotation;
 
-      const newRotationCounts = {};
-      residents.forEach((resident) => {
-        newRotationCounts[resident.name] = {};
-        newSchedule[resident.name].forEach((rotation) => {
+      const newRotationCounts = { ...rotationCounts };
+      [activeResident, overResident].forEach((residentName) => {
+        newRotationCounts[residentName] = {};
+        newSchedule[residentName].forEach((rotation) => {
           if (rotation !== '-') {
-            newRotationCounts[resident.name][rotation] = (newRotationCounts[resident.name][rotation] || 0) + 1;
+            newRotationCounts[residentName][rotation] = (newRotationCounts[residentName][rotation] || 0) + 1;
           }
         });
       });
 
-      console.log('handleDragEnd - New scheduleData:', newSchedule, 'New rotationCounts:', newRotationCounts);
       setRotationCounts(newRotationCounts);
-      setFilters({}); // Reset filters
       return newSchedule;
     });
   };
@@ -743,6 +707,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         />
       </Box>
 
+      {/* Filter by Rotation Counts */}
       <Accordion sx={{ mb: 2 }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Typography>Filter by Rotation Counts</Typography>
@@ -759,7 +724,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                       <Checkbox
                         checked={filters[rotation]?.includes(count) || false}
                         onChange={() => handleFilterChange(rotation, count)}
-                        value={count}
                       />
                     }
                     label={`${count}`}
@@ -771,6 +735,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         </AccordionDetails>
       </Accordion>
 
+      {/* Filter by Name */}
       <Menu anchorEl={filterAnchorEl} open={Boolean(filterAnchorEl)} onClose={handleFilterClose}>
         {residents.map((resident) => (
           <MenuItem key={resident.name} onClick={handleResidentToggle(resident.name)}>
@@ -780,10 +745,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
         ))}
       </Menu>
 
-      <Tabs value={tabValue} onChange={(e, newValue) => {
-        console.log('Switching to tab:', newValue);
-        setTabValue(newValue);
-      }} sx={{ mb: 2 }}>
+      <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 2 }}>
         <Tab label="Resident Schedule" />
         <Tab label="Rotation Counts" />
         <Tab label="Block Filling" />
@@ -808,7 +770,6 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {console.log('Rendering TableBody - selectedResidents:', selectedResidents, 'scheduleData:', scheduleData)}
                 {residents
                   .filter((resident) => selectedResidents.includes(resident.name))
                   .map((resident) => (
@@ -908,7 +869,7 @@ const SchedulesTab = ({ residents, rotations, selectedSet }) => {
                       '&:hover': { bgcolor: '#b0e0e6', boxShadow: 'inset 0 0 5px rgba(0,0,0,0.2)' },
                     }}
                   >
-                    <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>Block ${blockNum}</TableCell>
+                    <TableCell sx={{ border: '1px solid #e0e0e0', p: 1 }}>Block {blockNum}</TableCell>
                     {rotationNames.map((rotation) => {
                       const assigned = blockAssignments[block][rotation] || 0;
                       const rotationData = (rotations[selectedSet] || []).find((r) => r.name === rotation);
