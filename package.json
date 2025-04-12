@@ -15,6 +15,7 @@
     "@testing-library/user-event": "^13.5.0",
     "constraintjs": "^0.9.8-beta3",
     "file-saver": "^2.0.5",
+    "javascript-lp-solver": "^0.4.24",
     "react": "^19.1.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",

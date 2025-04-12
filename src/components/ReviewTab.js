@@ -43,7 +43,7 @@ const ReviewTab = ({ residents, rotations, selectedSet, setTabValue }) => {
         <Button
           variant="contained"
           color="primary"
-          size="small"
+          size="large"
           onClick={() => setTabValue(3)}
           endIcon={<ArrowForwardIcon />}
         >
